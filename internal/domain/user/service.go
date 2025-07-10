@@ -8,16 +8,18 @@ import (
 )
 
 // Service defines the business logic interface for user operations
-// Handles user-related business rules and validations
+// This is similar to Spring Boot's @Service layer - handles business rules and validations
+// Orchestrates between the repository layer and the presentation layer
 type Service interface {
-	CreateUser(ctx context.Context, email, username, password string) (*User, error)
-	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	CreateUser(ctx context.Context, email, username, password string) (*User, error) // Creates a new user with validation and password hashing
+	GetUserByEmail(ctx context.Context, email string) (*User, error)                 // Retrieves a user by email with business logic
 }
 
 // userService implements the Service interface
-// Encapsulates business logic for user operations
+// This is the concrete implementation of business logic, similar to Spring Boot's @Service classes
+// Encapsulates all user-related business operations and rules
 type userService struct {
-	repo Repository // Repository for data persistence
+	repo Repository // Repository dependency for data persistence - similar to @Autowired in Spring
 }
 
 // NewUserService creates a new instance of userService
@@ -27,25 +29,48 @@ func NewUserService(repo Repository) Service {
 }
 
 // CreateUser creates a new user with the provided information
+//
+// BUSINESS LOGIC FLOW:
+// 1. Validation: Check if user already exists (business rule)
+// 2. Security: Hash password before storage (security requirement)
+// 3. Entity Creation: Create domain entity with all required fields
+// 4. Persistence: Save to database via repository
+// 5. Error Handling: Wrap and contextualize any errors
+//
+// WHY THIS PATTERN?
+// - Encapsulates business rules in one place
+// - Handles complex operations that span multiple steps
+// - Provides transaction-like behavior
+// - Separates business logic from data access
+// - Makes testing easier (can mock repository)
+//
 // Validates input, hashes password, and persists user data
 func (s *userService) CreateUser(ctx context.Context, email, username, password string) (*User, error) {
+	// STEP 1: BUSINESS RULE VALIDATION
 	// Check if user already exists with this email
+	// This is a business rule: "Users must have unique email addresses"
 	existingUser, err := s.repo.GetByEmail(ctx, email)
 	if err == nil && existingUser != nil {
+		// Return business logic error (not a system error)
 		return nil, fmt.Errorf("user with email %s already exists", email)
 	}
 
+	// STEP 2: SECURITY IMPLEMENTATION
 	// Hash the password for secure storage
+	// bcrypt.DefaultCost provides good security vs. performance balance
+	// Never store plain text passwords in database
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
+		// Return wrapped error with context
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Create new user entity
+	// STEP 3: DOMAIN ENTITY CREATION
+	// Create new user entity with all required fields
 	user := &User{
-		ID:       uuid.New(),          // Generate unique identifier
-		Email:    email,               // Set email address
-		Username: username,            // Set username
+		ID:       uuid.New(),             // Generate unique identifier (UUID v4)
+		Email:    email,                  // Set email address (validated by HTTP layer)
+		Username: username,               // Set username (validated by HTTP layer)
 		Password: string(hashedPassword), // Store hashed password
 	}
 

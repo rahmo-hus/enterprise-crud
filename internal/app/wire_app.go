@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "enterprise-crud/docs"
 	"enterprise-crud/internal/config"
 	"enterprise-crud/internal/domain/user"
 	"enterprise-crud/internal/infrastructure/database"
@@ -17,7 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	_ "enterprise-crud/docs"
 )
 
 // WireApp represents the application with Wire-injected dependencies
@@ -55,7 +55,7 @@ func (a *WireApp) Run() error {
 
 	// Setup HTTP server
 	router := a.setupRouter()
-	
+
 	a.server = &http.Server{
 		Addr:         ":" + a.config.Server.Port,
 		Handler:      router,

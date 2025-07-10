@@ -10,11 +10,35 @@ import (
 
 // UserHandler handles HTTP requests for user operations
 // Provides REST endpoints for user management
+//
+// DEPENDENCY INJECTION EXPLANATION:
+// - UserHandler depends on user.Service interface (NOT concrete implementation)
+// - This follows the Dependency Inversion Principle
+// - The handler doesn't know HOW the service works, only WHAT it can do
+// - Makes testing easy (can inject mock services)
+// - Makes the code flexible (can swap service implementations)
 type UserHandler struct {
-	userService user.Service // Service layer for user business logic
+	userService user.Service // Service layer for user business logic (INTERFACE, not concrete type)
 }
 
 // NewUserHandler creates a new instance of UserHandler
+//
+// DEPENDENCY INJECTION PATTERN:
+// - This is a "Constructor" function that receives dependencies
+// - userService parameter is an INTERFACE (user.Service)
+// - The caller decides which concrete implementation to inject
+// - This is "Constructor Injection" - dependencies provided at creation time
+//
+// WHY THIS PATTERN?
+// 1. LOOSE COUPLING: Handler doesn't depend on concrete service implementation
+// 2. TESTABILITY: Can inject mock services for testing
+// 3. FLEXIBILITY: Can swap service implementations without changing handler code
+// 4. SINGLE RESPONSIBILITY: Handler focuses on HTTP concerns, service handles business logic
+//
+// EXAMPLE USAGE:
+// - Production: NewUserHandler(realUserService)
+// - Testing: NewUserHandler(mockUserService)
+//
 // Returns a handler for user HTTP operations
 func NewUserHandler(userService user.Service) *UserHandler {
 	return &UserHandler{userService: userService}
@@ -34,7 +58,7 @@ func NewUserHandler(userService user.Service) *UserHandler {
 // @Router /api/v1/users [post]
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req userDTO.CreateUserRequest
-	
+
 	// Bind and validate request JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, userDTO.ErrorResponse{
@@ -55,7 +79,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		// Handle other creation errors
 		c.JSON(http.StatusInternalServerError, userDTO.ErrorResponse{
 			Error:   "Failed to create user",
@@ -86,7 +110,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 // @Router /api/v1/users/{email} [get]
 func (h *UserHandler) GetUserByEmail(c *gin.Context) {
 	email := c.Param("email")
-	
+
 	// Validate email parameter
 	if email == "" {
 		c.JSON(http.StatusBadRequest, userDTO.ErrorResponse{

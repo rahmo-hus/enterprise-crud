@@ -6,33 +6,52 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config represents the main application configuration structure
+// It aggregates all configuration sections including server, database, and app settings
+// This struct is populated from environment variables, config files, or defaults
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	App      AppConfig      `mapstructure:"app"`
+	Server   ServerConfig   `mapstructure:"server"`   // HTTP server configuration settings
+	Database DatabaseConfig `mapstructure:"database"` // Database connection and pool settings
+	App      AppConfig      `mapstructure:"app"`      // Application metadata and general settings
 }
 
+// ServerConfig configures the HTTP server behavior and timeouts
+// These settings directly affect server performance and client experience
+// Similar to Spring Boot's server.* properties in application.properties
 type ServerConfig struct {
-	Port         string        `mapstructure:"port"`
-	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout time.Duration `mapstructure:"write_timeout"`
-	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
+	Port         string        `mapstructure:"port"`          // HTTP server port (default: "8080")
+	ReadTimeout  time.Duration `mapstructure:"read_timeout"`  // Max time to read request (default: 15s)
+	WriteTimeout time.Duration `mapstructure:"write_timeout"` // Max time to write response (default: 15s)
+	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`  // Max time for idle keep-alive connections (default: 60s)
 }
 
+// DatabaseConfig manages database connection pool settings
+// These settings are critical for database performance and resource management
+// Similar to Spring Boot's spring.datasource.* properties
 type DatabaseConfig struct {
-	URL             string        `mapstructure:"url"`
-	MaxOpenConns    int           `mapstructure:"max_open_conns"`
-	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
+	URL             string        `mapstructure:"url"`               // Database connection string (PostgreSQL format)
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`    // Maximum number of open connections (default: 25)
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`    // Maximum number of idle connections (default: 25)
+	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"` // Maximum connection lifetime (default: 5m)
 }
 
+// AppConfig contains application-level metadata and general settings
+// These settings control application behavior and operational characteristics
+// Similar to Spring Boot's spring.application.* properties
 type AppConfig struct {
-	Name        string `mapstructure:"name"`
-	Version     string `mapstructure:"version"`
-	Environment string `mapstructure:"environment"`
-	LogLevel    string `mapstructure:"log_level"`
+	Name        string `mapstructure:"name"`        // Application name for logging and monitoring (default: "enterprise-crud")
+	Version     string `mapstructure:"version"`     // Application version for health checks and monitoring (default: "1.0.0")
+	Environment string `mapstructure:"environment"` // Runtime environment: development, staging, production (default: "development")
+	LogLevel    string `mapstructure:"log_level"`   // Logging level: debug, info, warn, error (default: "info")
 }
 
+// Load initializes and returns the application configuration
+// It loads configuration from multiple sources in this priority order:
+// 1. Default values (always applied first)
+// 2. Config files (config.yaml from current dir, ./configs, or /etc/enterprise-crud)
+// 3. Environment variables (prefixed with APP_, e.g., APP_SERVER_PORT)
+//
+// This is similar to Spring Boot's configuration loading mechanism
 func Load() (*Config, error) {
 	v := viper.New()
 
@@ -65,6 +84,9 @@ func Load() (*Config, error) {
 	return &config, nil
 }
 
+// setDefaults configures default values for all configuration options
+// These defaults ensure the application can run without external configuration
+// Similar to Spring Boot's @ConfigurationProperties with default values
 func setDefaults(v *viper.Viper) {
 	// Server defaults
 	v.SetDefault("server.port", "8080")
