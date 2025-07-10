@@ -1,0 +1,17 @@
+server:
+  port: "8080"
+  read_timeout: "15s"
+  write_timeout: "15s"
+  idle_timeout: "60s"
+
+database:
+  url: "postgres://postgres:postgres@localhost:5433/enterprise_crud?sslmode=disable"
+  max_open_conns: 25
+  max_idle_conns: 25
+  conn_max_lifetime: "5m"
+
+app:
+  name: "enterprise-crud"
+  version: "1.0.0"
+  environment: "development"
+  log_level: "info"

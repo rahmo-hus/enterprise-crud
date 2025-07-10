@@ -1,0 +1,123 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"enterprise-crud/internal/config"
+	"enterprise-crud/internal/domain/user"
+	"enterprise-crud/internal/infrastructure/database"
+	httpHandlers "enterprise-crud/internal/presentation/http"
+	"github.com/gin-gonic/gin"
+)
+
+type App struct {
+	config *config.Config
+	server *http.Server
+}
+
+func New(cfg *config.Config) *App {
+	return &App{
+		config: cfg,
+	}
+}
+
+func (a *App) Run() error {
+	// Setup database connection
+	dbConn, err := database.NewConnection()
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer dbConn.Close()
+
+	// Configure database connection pool
+	sqlDB, err := dbConn.DB.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB from GORM: %w", err)
+	}
+
+	sqlDB.SetMaxOpenConns(a.config.Database.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(a.config.Database.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(a.config.Database.ConnMaxLifetime)
+
+	// Initialize dependencies
+	userRepo := database.NewUserRepository(dbConn.DB)
+	userService := user.NewUserService(userRepo)
+	userHandler := httpHandlers.NewUserHandler(userService)
+
+	// Setup HTTP server
+	router := a.setupRouter(userHandler)
+	
+	a.server = &http.Server{
+		Addr:         ":" + a.config.Server.Port,
+		Handler:      router,
+		ReadTimeout:  a.config.Server.ReadTimeout,
+		WriteTimeout: a.config.Server.WriteTimeout,
+		IdleTimeout:  a.config.Server.IdleTimeout,
+	}
+
+	// Start server in a goroutine
+	go func() {
+		log.Printf("Server starting on port %s", a.config.Server.Port)
+		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown
+	return a.waitForShutdown()
+}
+
+func (a *App) setupRouter(userHandler *httpHandlers.UserHandler) *gin.Engine {
+	if a.config.App.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":      "healthy",
+			"service":     a.config.App.Name,
+			"version":     a.config.App.Version,
+			"environment": a.config.App.Environment,
+		})
+	})
+
+	// API routes
+	v1 := router.Group("/api/v1")
+	{
+		userHandler.RegisterRoutes(v1)
+	}
+
+	return router
+}
+
+func (a *App) waitForShutdown() error {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+	log.Println("Shutting down server...")
+
+	// Create a context with timeout for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Shutdown the server gracefully
+	if err := a.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("server forced to shutdown: %w", err)
+	}
+
+	log.Println("Server exited")
+	return nil
+}

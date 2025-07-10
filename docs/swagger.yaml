@@ -1,0 +1,126 @@
+basePath: /
+definitions:
+  user.CreateUserRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        minLength: 8
+        type: string
+      username:
+        example: john_doe
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  user.ErrorResponse:
+    properties:
+      error:
+        example: Error message
+        type: string
+    type: object
+  user.UserResponse:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      username:
+        example: john_doe
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: A RESTful API for user management with CRUD operations
+  title: Enterprise CRUD API
+  version: 1.0.0
+paths:
+  /api/v1/users:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user with email, username and password
+      parameters:
+      - description: User creation request
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/user.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+      summary: Create a new user
+      tags:
+      - users
+  /api/v1/users/{email}:
+    get:
+      description: Get user details by email address
+      parameters:
+      - description: User email
+        in: path
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User found
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+      summary: Get user by email
+      tags:
+      - users
+  /health:
+    get:
+      description: Check if the service is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            properties:
+              status:
+                example: healthy
+                type: string
+            type: object
+      summary: Health check endpoint
+      tags:
+      - health
+schemes:
+- http
+swagger: "2.0"
