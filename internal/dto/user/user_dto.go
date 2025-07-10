@@ -18,6 +18,21 @@ type UserResponse struct {
 	Username string    `json:"username" example:"john_doe"` // User's chosen username
 }
 
+// LoginRequest represents the request payload for user login
+// Contains credentials for authentication
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`    // User's email address
+	Password string `json:"password" binding:"required" example:"password123"`           // User's password
+}
+
+// LoginResponse represents the response payload for successful login
+// Contains user information and JWT token
+type LoginResponse struct {
+	User  UserResponse `json:"user"`  // User information
+	Token string       `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."` // JWT access token
+	ExpiresAt int64    `json:"expires_at" example:"1735689600"` // Token expiration timestamp
+}
+
 // ErrorResponse represents error response structure
 // Provides consistent error messaging across the API
 type ErrorResponse struct {

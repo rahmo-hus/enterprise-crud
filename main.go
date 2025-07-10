@@ -1,9 +1,13 @@
 // @title Enterprise CRUD API
 // @version 1.0.0
-// @description A RESTful API for user management with CRUD operations
+// @description A RESTful API for user management with CRUD operations and JWT authentication
 // @host localhost:8080
 // @BasePath /
 // @schemes http
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 package main
 
 import (

@@ -2,9 +2,11 @@ package http
 
 import (
 	"net/http"
+	"time"
 
 	"enterprise-crud/internal/domain/user"
 	userDTO "enterprise-crud/internal/dto/user"
+	"enterprise-crud/internal/infrastructure/auth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,6 +21,7 @@ import (
 // - Makes the code flexible (can swap service implementations)
 type UserHandler struct {
 	userService user.Service // Service layer for user business logic (INTERFACE, not concrete type)
+	jwtService  *auth.JWTService // JWT service for token generation and validation
 }
 
 // NewUserHandler creates a new instance of UserHandler
@@ -40,8 +43,11 @@ type UserHandler struct {
 // - Testing: NewUserHandler(mockUserService)
 //
 // Returns a handler for user HTTP operations
-func NewUserHandler(userService user.Service) *UserHandler {
-	return &UserHandler{userService: userService}
+func NewUserHandler(userService user.Service, jwtService *auth.JWTService) *UserHandler {
+	return &UserHandler{
+		userService: userService,
+		jwtService:  jwtService,
+	}
 }
 
 // CreateUser handles POST requests to create a new user
@@ -140,13 +146,121 @@ func (h *UserHandler) GetUserByEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// Login handles POST requests to authenticate a user
+// @Summary User login
+// @Description Authenticate user with email and password, returns JWT token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param credentials body userDTO.LoginRequest true "User login credentials"
+// @Success 200 {object} userDTO.LoginResponse "Login successful"
+// @Failure 400 {object} userDTO.ErrorResponse "Invalid request data"
+// @Failure 401 {object} userDTO.ErrorResponse "Invalid credentials"
+// @Failure 500 {object} userDTO.ErrorResponse "Internal server error"
+// @Router /api/v1/auth/login [post]
+func (h *UserHandler) Login(c *gin.Context) {
+	var req userDTO.LoginRequest
+
+	// Bind and validate request JSON
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, userDTO.ErrorResponse{
+			Error:   "Invalid request",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Authenticate user
+	authenticatedUser, err := h.userService.AuthenticateUser(c.Request.Context(), req.Email, req.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, userDTO.ErrorResponse{
+			Error:   "Authentication failed",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Generate JWT token
+	token, err := h.jwtService.GenerateToken(authenticatedUser.ID, authenticatedUser.Email, authenticatedUser.Username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, userDTO.ErrorResponse{
+			Error:   "Failed to generate token",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Calculate expiration time (matching JWT service expiration)
+	expiresAt := time.Now().Add(24 * 30 * time.Hour).Unix() // 30 days (long-lived token)
+
+	// Return successful response
+	response := userDTO.LoginResponse{
+		User: userDTO.UserResponse{
+			ID:       authenticatedUser.ID,
+			Email:    authenticatedUser.Email,
+			Username: authenticatedUser.Username,
+		},
+		Token:     token,
+		ExpiresAt: expiresAt,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetProfile handles GET requests to retrieve the current user's profile
+// @Summary Get current user profile
+// @Description Get the profile of the currently authenticated user
+// @Tags users
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} userDTO.UserResponse "User profile retrieved successfully"
+// @Failure 401 {object} userDTO.ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 500 {object} userDTO.ErrorResponse "Internal server error"
+// @Router /api/v1/users/profile [get]
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	// Get user information from JWT token (set by middleware)
+	userID, userEmail, userUsername, exists := auth.GetUserFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, userDTO.ErrorResponse{
+			Error:   "Unauthorized",
+			Message: "User information not found in token",
+		})
+		return
+	}
+
+	// Return user profile
+	response := userDTO.UserResponse{
+		ID:       userID,
+		Email:    userEmail,
+		Username: userUsername,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // RegisterRoutes registers user routes with the gin router
 // Sets up POST /users and GET /users/:email endpoints
 func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
+	// Create JWT middleware
+	jwtMiddleware := auth.NewJWTMiddleware(h.jwtService)
+
 	// User routes group
 	userRoutes := router.Group("/users")
 	{
-		userRoutes.POST("", h.CreateUser)           // Create new user
-		userRoutes.GET("/:email", h.GetUserByEmail) // Get user by email
+		userRoutes.POST("", h.CreateUser)           // Create new user (public)
+		userRoutes.GET("/:email", h.GetUserByEmail) // Get user by email (public)
+		
+		// Protected routes (require authentication)
+		userRoutes.GET("/profile", jwtMiddleware.AuthRequired(), h.GetProfile) // Get current user profile
+	}
+}
+
+// RegisterAuthRoutes registers authentication routes with the gin router
+// Sets up POST /auth/login endpoint
+func (h *UserHandler) RegisterAuthRoutes(router *gin.RouterGroup) {
+	// Authentication routes group
+	authRoutes := router.Group("/auth")
+	{
+		authRoutes.POST("/login", h.Login) // User login
 	}
 }

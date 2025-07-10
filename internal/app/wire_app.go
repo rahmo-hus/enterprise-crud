@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	_ "enterprise-crud/docs"
 	"enterprise-crud/internal/config"
 	"enterprise-crud/internal/domain/user"
+	"enterprise-crud/internal/infrastructure/auth"
 	"enterprise-crud/internal/infrastructure/database"
 	httpHandlers "enterprise-crud/internal/presentation/http"
 	"github.com/gin-gonic/gin"
@@ -108,6 +110,7 @@ func (a *WireApp) setupRouter() *gin.Engine {
 	v1 := router.Group("/api/v1")
 	{
 		a.userHandler.RegisterRoutes(v1)
+		a.userHandler.RegisterAuthRoutes(v1)
 	}
 
 	return router
@@ -144,6 +147,7 @@ type Dependencies struct {
 	DBConn      *database.Connection
 	UserRepo    user.Repository
 	UserService user.Service
+	JWTService  *auth.JWTService
 	UserHandler *httpHandlers.UserHandler
 }
 
@@ -161,14 +165,35 @@ func NewDependencies(cfg *config.Config) (*Dependencies, error) {
 	// Services
 	userService := user.NewUserService(userRepo)
 
+	// JWT Service
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "default-secret-key-change-in-production"
+	}
+
+	jwtIssuer := os.Getenv("JWT_ISSUER")
+	if jwtIssuer == "" {
+		jwtIssuer = "enterprise-crud-api"
+	}
+
+	jwtExpirationHours := 720 // 30 days default
+	if envHours := os.Getenv("JWT_EXPIRATION_HOURS"); envHours != "" {
+		if hours, err := strconv.Atoi(envHours); err == nil {
+			jwtExpirationHours = hours
+		}
+	}
+
+	jwtService := auth.NewJWTService(jwtSecret, jwtIssuer, time.Duration(jwtExpirationHours)*time.Hour)
+
 	// Handlers
-	userHandler := httpHandlers.NewUserHandler(userService)
+	userHandler := httpHandlers.NewUserHandler(userService, jwtService)
 
 	return &Dependencies{
 		Config:      cfg,
 		DBConn:      dbConn,
 		UserRepo:    userRepo,
 		UserService: userService,
+		JWTService:  jwtService,
 		UserHandler: userHandler,
 	}, nil
 }

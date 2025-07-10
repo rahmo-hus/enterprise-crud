@@ -13,6 +13,7 @@ import (
 type Service interface {
 	CreateUser(ctx context.Context, email, username, password string) (*User, error) // Creates a new user with validation and password hashing
 	GetUserByEmail(ctx context.Context, email string) (*User, error)                 // Retrieves a user by email with business logic
+	AuthenticateUser(ctx context.Context, email, password string) (*User, error)     // Authenticates user with email and password
 }
 
 // userService implements the Service interface
@@ -89,5 +90,37 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*User, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
+	return user, nil
+}
+
+// AuthenticateUser validates user credentials and returns user if valid
+// 
+// AUTHENTICATION FLOW:
+// 1. Retrieve user by email from database
+// 2. Compare provided password with stored hashed password
+// 3. Return user if passwords match, error if not
+//
+// SECURITY CONSIDERATIONS:
+// - Uses bcrypt for password verification (secure against timing attacks)
+// - Never returns the hashed password to prevent exposure
+// - Provides generic error messages to prevent user enumeration
+func (s *userService) AuthenticateUser(ctx context.Context, email, password string) (*User, error) {
+	// STEP 1: GET USER BY EMAIL
+	user, err := s.repo.GetByEmail(ctx, email)
+	if err != nil {
+		// Return generic error to prevent user enumeration
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	// STEP 2: VERIFY PASSWORD
+	// bcrypt.CompareHashAndPassword is secure against timing attacks
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		// Return generic error to prevent user enumeration
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	// STEP 3: RETURN AUTHENTICATED USER
+	// Password verification successful
 	return user, nil
 }

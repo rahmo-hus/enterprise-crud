@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"enterprise-crud/internal/domain/user"
 	userDTO "enterprise-crud/internal/dto/user"
+	"enterprise-crud/internal/infrastructure/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -37,14 +39,24 @@ func (m *MockUserService) GetUserByEmail(ctx context.Context, email string) (*us
 	return args.Get(0).(*user.User), args.Error(1)
 }
 
+// AuthenticateUser mocks the AuthenticateUser method of Service interface
+// Returns user and error based on test scenario configuration
+func (m *MockUserService) AuthenticateUser(ctx context.Context, email, password string) (*user.User, error) {
+	args := m.Called(ctx, email, password)
+	return args.Get(0).(*user.User), args.Error(1)
+}
+
 // setupTestRouter creates a test Gin router with user routes
 // Returns configured router for testing HTTP endpoints
 func setupTestRouter(userService user.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	
+	// Create JWT service for testing
+	jwtService := auth.NewJWTService("test-secret-key", "test-issuer", time.Hour)
+	
 	// Create handler and register routes
-	userHandler := NewUserHandler(userService)
+	userHandler := NewUserHandler(userService, jwtService)
 	v1 := router.Group("/api/v1")
 	userHandler.RegisterRoutes(v1)
 	
@@ -81,9 +93,49 @@ func TestUserHandler_CreateUser(t *testing.T) {
 			expectedBody:   `"email":"test@example.com"`,
 		},
 		{
-			name: "invalid request body",
+			name: "invalid request body - invalid email",
 			requestBody: map[string]interface{}{
 				"email": "invalid-email", // Invalid email format
+				"username": "testuser",
+				"password": "password123",
+			},
+			mockFunc: func(m *MockUserService) {
+				// No mock expectations needed for validation errors
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   `"error":"Invalid request"`,
+		},
+		{
+			name: "invalid request body - password too short",
+			requestBody: map[string]interface{}{
+				"email": "test@example.com",
+				"username": "testuser",
+				"password": "12345", // Password too short (less than 8 characters)
+			},
+			mockFunc: func(m *MockUserService) {
+				// No mock expectations needed for validation errors
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   `"error":"Invalid request"`,
+		},
+		{
+			name: "invalid request body - username too short",
+			requestBody: map[string]interface{}{
+				"email": "test@example.com",
+				"username": "ab", // Username too short (less than 3 characters)
+				"password": "password123",
+			},
+			mockFunc: func(m *MockUserService) {
+				// No mock expectations needed for validation errors
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   `"error":"Invalid request"`,
+		},
+		{
+			name: "invalid request body - missing required fields",
+			requestBody: map[string]interface{}{
+				"email": "test@example.com",
+				// Missing username and password
 			},
 			mockFunc: func(m *MockUserService) {
 				// No mock expectations needed for validation errors

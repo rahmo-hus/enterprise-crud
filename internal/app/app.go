@@ -7,14 +7,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	_ "enterprise-crud/docs"
 	"enterprise-crud/internal/config"
 	"enterprise-crud/internal/domain/user"
+	"enterprise-crud/internal/infrastructure/auth"
 	"enterprise-crud/internal/infrastructure/database"
 	httpHandlers "enterprise-crud/internal/presentation/http"
 	"github.com/gin-gonic/gin"
+	"github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 type App struct {
@@ -42,6 +47,23 @@ func (a *App) Run() error {
 		return fmt.Errorf("failed to get sql.DB from GORM: %w", err)
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "default-secret-key-change-in-production"
+	}
+
+	jwtIssuer := os.Getenv("JWT_ISSUER")
+	if jwtIssuer == "" {
+		jwtIssuer = "enterprise-crud-api"
+	}
+
+	jwtExpirationHours := 720
+	if envHours := os.Getenv("JWT_EXPIRATION_HOURS"); envHours != "" {
+		if hours, err := strconv.Atoi(envHours); err == nil {
+			jwtExpirationHours = hours
+		}
+	}
+
 	sqlDB.SetMaxOpenConns(a.config.Database.MaxOpenConns)
 	sqlDB.SetMaxIdleConns(a.config.Database.MaxIdleConns)
 	sqlDB.SetConnMaxLifetime(a.config.Database.ConnMaxLifetime)
@@ -49,11 +71,12 @@ func (a *App) Run() error {
 	// Initialize dependencies
 	userRepo := database.NewUserRepository(dbConn.DB)
 	userService := user.NewUserService(userRepo)
-	userHandler := httpHandlers.NewUserHandler(userService)
+	jwtService := auth.NewJWTService(jwtSecret, jwtIssuer, time.Duration(jwtExpirationHours)*time.Hour)
+	userHandler := httpHandlers.NewUserHandler(userService, jwtService)
 
 	// Setup HTTP server
 	router := a.setupRouter(userHandler)
-	
+
 	a.server = &http.Server{
 		Addr:         ":" + a.config.Server.Port,
 		Handler:      router,
@@ -92,6 +115,9 @@ func (a *App) setupRouter(userHandler *httpHandlers.UserHandler) *gin.Engine {
 			"environment": a.config.App.Environment,
 		})
 	})
+
+	// Swagger documentation
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API routes
 	v1 := router.Group("/api/v1")

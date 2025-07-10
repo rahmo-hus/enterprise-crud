@@ -93,9 +93,40 @@ The Swagger UI provides:
 GET /health
 ```
 
+### Authentication
+
+#### Login
+```
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "user": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "email": "user@example.com",
+    "username": "testuser"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_at": 1735689600
+}
+```
+
+**Error Responses:**
+- `400` - Invalid request body or validation errors
+- `401` - Invalid email or password
+- `500` - Internal server error
+
 ### User Management
 
-#### Create User
+#### Create User (Public)
 ```
 POST /api/v1/users
 Content-Type: application/json
@@ -121,7 +152,7 @@ Content-Type: application/json
 - `409` - User with email already exists
 - `500` - Internal server error
 
-#### Get User by Email
+#### Get User by Email (Public)
 ```
 GET /api/v1/users/{email}
 ```
@@ -138,6 +169,25 @@ GET /api/v1/users/{email}
 **Error Responses:**
 - `400` - Invalid email parameter
 - `404` - User not found
+- `500` - Internal server error
+
+#### Get User Profile (Protected)
+```
+GET /api/v1/users/profile
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Success Response (200):**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "email": "user@example.com",
+  "username": "testuser"
+}
+```
+
+**Error Responses:**
+- `401` - Unauthorized - invalid or missing token
 - `500` - Internal server error
 
 ## Testing
@@ -210,7 +260,54 @@ DB_PASSWORD=postgres
 
 # Server Configuration
 PORT=8080
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_ISSUER=enterprise-crud-api
+JWT_EXPIRATION_HOURS=720
 ```
+
+### Example API Calls with JWT
+
+#### 1. Create a User
+```bash
+curl -X POST http://localhost:8080/api/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "username": "john_doe",
+    "password": "password123"
+  }'
+```
+
+#### 2. Login to Get Token
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "password123"
+  }'
+```
+
+**Save the token from the response:**
+```json
+{
+  "user": {...},
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_at": 1735689600
+}
+```
+
+#### 3. Access Protected Endpoint
+```bash
+# Replace <TOKEN> with the actual JWT token from login
+curl -X GET http://localhost:8080/api/v1/users/profile \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+#### 4. Test Token Expiration
+The JWT tokens are long-lived (30 days by default). They will automatically expire and require re-authentication.
 
 ### Docker Compose Configuration
 
