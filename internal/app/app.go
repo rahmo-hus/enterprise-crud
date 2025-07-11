@@ -70,7 +70,8 @@ func (a *App) Run() error {
 
 	// Initialize dependencies
 	userRepo := database.NewUserRepository(dbConn.DB)
-	userService := user.NewUserService(userRepo)
+	roleRepo := database.NewRoleRepository(dbConn.DB)
+	userService := user.NewUserService(userRepo, roleRepo)
 	jwtService := auth.NewJWTService(jwtSecret, jwtIssuer, time.Duration(jwtExpirationHours)*time.Hour)
 	userHandler := httpHandlers.NewUserHandler(userService, jwtService)
 
@@ -123,6 +124,7 @@ func (a *App) setupRouter(userHandler *httpHandlers.UserHandler) *gin.Engine {
 	v1 := router.Group("/api/v1")
 	{
 		userHandler.RegisterRoutes(v1)
+		userHandler.RegisterAuthRoutes(v1)
 	}
 
 	return router

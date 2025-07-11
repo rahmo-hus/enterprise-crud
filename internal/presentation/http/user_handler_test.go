@@ -63,6 +63,15 @@ func setupTestRouter(userService user.Service) *gin.Engine {
 	return router
 }
 
+// generateTestJWT creates a test JWT token for authentication
+// Returns JWT token string for testing authenticated endpoints
+func generateTestJWT(roles []string) string {
+	jwtService := auth.NewJWTService("test-secret-key", "test-issuer", time.Hour)
+	userID := uuid.New()
+	token, _ := jwtService.GenerateToken(userID, "admin@test.com", "admin", roles)
+	return token
+}
+
 // TestUserHandler_CreateUser tests the CreateUser HTTP handler
 // Covers successful creation, validation errors, and service errors
 func TestUserHandler_CreateUser(t *testing.T) {
@@ -251,8 +260,10 @@ func TestUserHandler_GetUserByEmail(t *testing.T) {
 			// Create test router
 			router := setupTestRouter(mockService)
 
-			// Create HTTP request
+			// Create HTTP request with ADMIN authentication
 			req, _ := http.NewRequest(http.MethodGet, "/api/v1/users/"+tt.email, nil)
+			adminToken := generateTestJWT([]string{"ADMIN"})
+			req.Header.Set("Authorization", "Bearer "+adminToken)
 
 			// Create response recorder
 			w := httptest.NewRecorder()

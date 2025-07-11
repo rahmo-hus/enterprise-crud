@@ -48,6 +48,7 @@ func (m *JWTMiddleware) AuthRequired() gin.HandlerFunc {
 		c.Set("user_email", claims.Email)
 		c.Set("user_username", claims.Username)
 		c.Set("jwt_claims", claims)
+		c.Set("user", claims) // Also set for role middleware compatibility
 
 		c.Next()
 	}
@@ -80,6 +81,7 @@ func (m *JWTMiddleware) OptionalAuth() gin.HandlerFunc {
 		c.Set("user_email", claims.Email)
 		c.Set("user_username", claims.Username)
 		c.Set("jwt_claims", claims)
+		c.Set("user", claims) // Also set for role middleware compatibility
 
 		c.Next()
 	}

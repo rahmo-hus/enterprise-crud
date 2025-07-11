@@ -13,6 +13,7 @@ import (
 
 	_ "enterprise-crud/docs"
 	"enterprise-crud/internal/config"
+	"enterprise-crud/internal/domain/role"
 	"enterprise-crud/internal/domain/user"
 	"enterprise-crud/internal/infrastructure/auth"
 	"enterprise-crud/internal/infrastructure/database"
@@ -146,6 +147,7 @@ type Dependencies struct {
 	Config      *config.Config
 	DBConn      *database.Connection
 	UserRepo    user.Repository
+	RoleRepo    role.Repository // Added role repository
 	UserService user.Service
 	JWTService  *auth.JWTService
 	UserHandler *httpHandlers.UserHandler
@@ -161,9 +163,10 @@ func NewDependencies(cfg *config.Config) (*Dependencies, error) {
 
 	// Repositories
 	userRepo := database.NewUserRepository(dbConn.DB)
+	roleRepo := database.NewRoleRepository(dbConn.DB) // Create role repository
 
 	// Services
-	userService := user.NewUserService(userRepo)
+	userService := user.NewUserService(userRepo, roleRepo) // Pass role repo to user service
 
 	// JWT Service
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -192,6 +195,7 @@ func NewDependencies(cfg *config.Config) (*Dependencies, error) {
 		Config:      cfg,
 		DBConn:      dbConn,
 		UserRepo:    userRepo,
+		RoleRepo:    roleRepo, // Include role repository
 		UserService: userService,
 		JWTService:  jwtService,
 		UserHandler: userHandler,

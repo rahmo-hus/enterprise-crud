@@ -42,7 +42,7 @@ func (r *userRepository) Create(ctx context.Context, user *user.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
-// GetByEmail retrieves a user by their email address
+// GetByEmail retrieves a user by their email address WITH their roles
 //
 // CONTEXT USAGE:
 // - Same context benefits as Create method
@@ -50,27 +50,29 @@ func (r *userRepository) Create(ctx context.Context, user *user.User) error {
 // - Essential for long-running queries or network delays
 //
 // SQL QUERY EXPLANATION:
+// - Preload("Roles"): Eagerly loads the user's roles (JOIN with user_roles and roles tables)
 // - Where("email = ?", email): Parameterized query prevents SQL injection
 // - First(&u): Retrieves the first matching record
 // - .Error: Returns error if no record found or database error
 //
 // GORM BEHAVIOR:
 // - First() returns ErrRecordNotFound if no user exists
-// - Where() adds WHERE clause to the SQL query
+// - Preload() automatically handles the many-to-many relationship
 // - The ? placeholder is safely replaced with the email parameter
 //
-// Returns user if found, nil and error if not found or database error occurs
+// Returns user with roles if found, nil and error if not found or database error occurs
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*user.User, error) {
 	var u user.User
 
-	// WithContext(ctx) + Where() + First() sequence:
+	// WithContext(ctx) + Preload() + Where() + First() sequence:
 	// 1. WithContext(ctx): Enables cancellation and tracing
-	// 2. Where("email = ?", email): Adds WHERE clause (SQL injection safe)
-	// 3. First(&u): Executes SELECT query and scans result into u
-	// 4. .Error: Returns the error (nil if successful, ErrRecordNotFound if no match)
-	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	// 2. Preload("Roles"): Eagerly load the user's roles from the junction table
+	// 3. Where("email = ?", email): Adds WHERE clause (SQL injection safe)
+	// 4. First(&u): Executes SELECT query and scans result into u with roles
+	// 5. .Error: Returns the error (nil if successful, ErrRecordNotFound if no match)
+	err := r.db.WithContext(ctx).Preload("Roles").Where("email = ?", email).First(&u).Error
 	if err != nil {
 		return nil, err // Return nil user and the error (could be ErrRecordNotFound)
 	}
-	return &u, nil // Return pointer to user and nil error
+	return &u, nil // Return pointer to user with roles loaded and nil error
 }

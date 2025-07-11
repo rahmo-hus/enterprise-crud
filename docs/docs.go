@@ -14,14 +14,6 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Type \"Bearer\" followed by a space and JWT token.",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        }
-    },
     "paths": {
         "/api/v1/auth/login": {
             "post": {
@@ -134,7 +126,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get the profile of the currently authenticated user",
+                "description": "Get the profile of the currently authenticated user with their roles",
                 "produces": [
                     "application/json"
                 ],
@@ -166,6 +158,11 @@ const docTemplate = `{
         },
         "/api/v1/users/{email}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get user details by email address",
                 "produces": [
                     "application/json"
@@ -190,6 +187,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/user.UserResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/user.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - insufficient permissions",
+                        "schema": {
+                            "$ref": "#/definitions/user.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "User not found",
                         "schema": {
@@ -200,32 +209,6 @@ const docTemplate = `{
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/user.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/health": {
-            "get": {
-                "description": "Check if the service is running",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "health"
-                ],
-                "summary": "Health check endpoint",
-                "responses": {
-                    "200": {
-                        "description": "Service is healthy",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "status": {
-                                    "type": "string",
-                                    "example": "healthy"
-                                }
-                            }
                         }
                     }
                 }
@@ -242,15 +225,18 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
+                    "description": "User's email address - must be unique",
                     "type": "string",
                     "example": "user@example.com"
                 },
                 "password": {
+                    "description": "Password - must be at least 8 characters",
                     "type": "string",
                     "minLength": 8,
                     "example": "password123"
                 },
                 "username": {
+                    "description": "Username - must be at least 3 characters",
                     "type": "string",
                     "minLength": 3,
                     "example": "john_doe"
@@ -261,10 +247,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "description": "Error message",
                     "type": "string",
                     "example": "Error message"
                 },
                 "message": {
+                    "description": "Additional error details",
                     "type": "string",
                     "example": "Additional error details"
                 }
@@ -278,10 +266,12 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
+                    "description": "User's email address",
                     "type": "string",
                     "example": "user@example.com"
                 },
                 "password": {
+                    "description": "User's password",
                     "type": "string",
                     "example": "password123"
                 }
@@ -290,16 +280,23 @@ const docTemplate = `{
         "user.LoginResponse": {
             "type": "object",
             "properties": {
-                "user": {
-                    "$ref": "#/definitions/user.UserResponse"
+                "expires_at": {
+                    "description": "Token expiration timestamp",
+                    "type": "integer",
+                    "example": 1735689600
                 },
                 "token": {
+                    "description": "JWT access token",
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 },
-                "expires_at": {
-                    "type": "integer",
-                    "example": 1640995200
+                "user": {
+                    "description": "User information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    ]
                 }
             }
         },
@@ -307,18 +304,40 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
+                    "description": "User's email address",
                     "type": "string",
                     "example": "user@example.com"
                 },
                 "id": {
+                    "description": "Unique identifier for the user",
                     "type": "string",
                     "example": "123e4567-e89b-12d3-a456-426614174000"
                 },
+                "roles": {
+                    "description": "User's roles in the system",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "USER",
+                        "ADMIN"
+                    ]
+                },
                 "username": {
+                    "description": "User's chosen username",
                     "type": "string",
                     "example": "john_doe"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
@@ -330,9 +349,11 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{"http"},
 	Title:            "Enterprise CRUD API",
-	Description:      "A RESTful API for user management with CRUD operations",
+	Description:      "A RESTful API for user management with CRUD operations and JWT authentication",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {

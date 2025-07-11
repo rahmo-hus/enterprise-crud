@@ -23,12 +23,43 @@ type UserRepositoryTestSuite struct {
 // SetupSuite runs before all tests in the suite
 // Initializes test database and repository
 func (suite *UserRepositoryTestSuite) SetupSuite() {
-	// Create in-memory SQLite database for testing
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// Create in-memory SQLite database for testing with custom configuration
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
 	suite.Require().NoError(err)
 
-	// Auto-migrate user table
-	err = db.AutoMigrate(&user.User{})
+	// Create tables manually for SQLite compatibility
+	err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS roles (
+			id TEXT PRIMARY KEY,
+			name TEXT UNIQUE NOT NULL,
+			description TEXT,
+			created_at DATETIME,
+			updated_at DATETIME
+		)
+	`).Error
+	suite.Require().NoError(err)
+
+	err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS users (
+			id TEXT PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			username TEXT UNIQUE NOT NULL,
+			password TEXT NOT NULL,
+			created_at DATETIME,
+			updated_at DATETIME
+		)
+	`).Error
+	suite.Require().NoError(err)
+
+	err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS user_roles (
+			user_id TEXT,
+			role_id TEXT,
+			PRIMARY KEY (user_id, role_id)
+		)
+	`).Error
 	suite.Require().NoError(err)
 
 	suite.db = db

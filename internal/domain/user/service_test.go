@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"enterprise-crud/internal/domain/role"
 )
 
 // MockRepository is a mock implementation of Repository interface
@@ -32,17 +33,33 @@ func (m *MockRepository) GetByEmail(ctx context.Context, email string) (*User, e
 	return args.Get(0).(*User), args.Error(1)
 }
 
+// MockRoleRepository is a mock implementation of role.Repository interface
+// Used for testing service layer without database dependencies
+type MockRoleRepository struct {
+	mock.Mock
+}
+
+// GetByName mocks the GetByName method of role.Repository interface
+func (m *MockRoleRepository) GetByName(ctx context.Context, name string) (*role.Role, error) {
+	args := m.Called(ctx, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*role.Role), args.Error(1)
+}
+
 // TestUserService_CreateUser tests the CreateUser method
 // Covers successful creation, existing user, and error scenarios
 func TestUserService_CreateUser(t *testing.T) {
 	tests := []struct {
-		name     string              // Test case name
-		email    string              // Input email
-		username string              // Input username
-		password string              // Input password
-		mockFunc func(*MockRepository) // Mock repository setup function
-		wantErr  bool                // Expected error occurrence
-		errMsg   string              // Expected error message
+		name         string                     // Test case name
+		email        string                     // Input email
+		username     string                     // Input username
+		password     string                     // Input password
+		mockFunc     func(*MockRepository)     // Mock repository setup function
+		roleMockFunc func(*MockRoleRepository) // Mock role repository setup function
+		wantErr      bool                      // Expected error occurrence
+		errMsg       string                    // Expected error message
 	}{
 		{
 			name:     "successful user creation",
@@ -54,6 +71,11 @@ func TestUserService_CreateUser(t *testing.T) {
 				m.On("GetByEmail", mock.Anything, "test@example.com").Return((*User)(nil), gorm.ErrRecordNotFound)
 				// Mock Create to succeed
 				m.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
+			},
+			roleMockFunc: func(m *MockRoleRepository) {
+				// Mock GetByName to return default USER role
+				userRole := &role.Role{Name: "USER", Description: "Default user role"}
+				m.On("GetByName", mock.Anything, "USER").Return(userRole, nil)
 			},
 			wantErr: false,
 		},
@@ -71,6 +93,9 @@ func TestUserService_CreateUser(t *testing.T) {
 				}
 				m.On("GetByEmail", mock.Anything, "existing@example.com").Return(existingUser, nil)
 			},
+			roleMockFunc: func(m *MockRoleRepository) {
+				// No role operations expected for this test
+			},
 			wantErr: true,
 			errMsg:  "user with email existing@example.com already exists",
 		},
@@ -85,6 +110,11 @@ func TestUserService_CreateUser(t *testing.T) {
 				// Mock Create to fail
 				m.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(errors.New("database error"))
 			},
+			roleMockFunc: func(m *MockRoleRepository) {
+				// Mock GetByName to return default USER role
+				userRole := &role.Role{Name: "USER", Description: "Default user role"}
+				m.On("GetByName", mock.Anything, "USER").Return(userRole, nil)
+			},
 			wantErr: true,
 			errMsg:  "failed to create user: database error",
 		},
@@ -92,12 +122,14 @@ func TestUserService_CreateUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock repository
+			// Setup mock repositories
 			mockRepo := new(MockRepository)
+			mockRoleRepo := new(MockRoleRepository)
 			tt.mockFunc(mockRepo)
+			tt.roleMockFunc(mockRoleRepo)
 
-			// Create service with mock repository
-			service := NewUserService(mockRepo)
+			// Create service with mock repositories
+			service := NewUserService(mockRepo, mockRoleRepo)
 
 			// Execute test
 			result, err := service.CreateUser(context.Background(), tt.email, tt.username, tt.password)
@@ -129,11 +161,12 @@ func TestUserService_CreateUser(t *testing.T) {
 // Covers successful retrieval and error scenarios
 func TestUserService_GetUserByEmail(t *testing.T) {
 	tests := []struct {
-		name     string              // Test case name
-		email    string              // Input email
-		mockFunc func(*MockRepository) // Mock repository setup function
-		wantErr  bool                // Expected error occurrence
-		errMsg   string              // Expected error message
+		name         string                     // Test case name
+		email        string                     // Input email
+		mockFunc     func(*MockRepository)     // Mock repository setup function
+		roleMockFunc func(*MockRoleRepository) // Mock role repository setup function
+		wantErr      bool                      // Expected error occurrence
+		errMsg       string                    // Expected error message
 	}{
 		{
 			name:  "successful user retrieval",
@@ -147,6 +180,9 @@ func TestUserService_GetUserByEmail(t *testing.T) {
 				}
 				m.On("GetByEmail", mock.Anything, "test@example.com").Return(user, nil)
 			},
+			roleMockFunc: func(m *MockRoleRepository) {
+				// No role operations expected for GetUserByEmail
+			},
 			wantErr: false,
 		},
 		{
@@ -156,6 +192,9 @@ func TestUserService_GetUserByEmail(t *testing.T) {
 				// Mock GetByEmail to return not found error
 				m.On("GetByEmail", mock.Anything, "notfound@example.com").Return((*User)(nil), gorm.ErrRecordNotFound)
 			},
+			roleMockFunc: func(m *MockRoleRepository) {
+				// No role operations expected for GetUserByEmail
+			},
 			wantErr: true,
 			errMsg:  "failed to get user by email",
 		},
@@ -163,12 +202,14 @@ func TestUserService_GetUserByEmail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock repository
+			// Setup mock repositories
 			mockRepo := new(MockRepository)
+			mockRoleRepo := new(MockRoleRepository)
 			tt.mockFunc(mockRepo)
+			tt.roleMockFunc(mockRoleRepo)
 
-			// Create service with mock repository
-			service := NewUserService(mockRepo)
+			// Create service with mock repositories
+			service := NewUserService(mockRepo, mockRoleRepo)
 
 			// Execute test
 			result, err := service.GetUserByEmail(context.Background(), tt.email)

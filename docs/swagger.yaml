@@ -3,13 +3,16 @@ definitions:
   user.CreateUserRequest:
     properties:
       email:
+        description: User's email address - must be unique
         example: user@example.com
         type: string
       password:
+        description: Password - must be at least 8 characters
         example: password123
         minLength: 8
         type: string
       username:
+        description: Username - must be at least 3 characters
         example: john_doe
         minLength: 3
         type: string
@@ -21,28 +24,107 @@ definitions:
   user.ErrorResponse:
     properties:
       error:
+        description: Error message
         example: Error message
         type: string
+      message:
+        description: Additional error details
+        example: Additional error details
+        type: string
+    type: object
+  user.LoginRequest:
+    properties:
+      email:
+        description: User's email address
+        example: user@example.com
+        type: string
+      password:
+        description: User's password
+        example: password123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  user.LoginResponse:
+    properties:
+      expires_at:
+        description: Token expiration timestamp
+        example: 1735689600
+        type: integer
+      token:
+        description: JWT access token
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/user.UserResponse'
+        description: User information
     type: object
   user.UserResponse:
     properties:
       email:
+        description: User's email address
         example: user@example.com
         type: string
       id:
+        description: Unique identifier for the user
         example: 123e4567-e89b-12d3-a456-426614174000
         type: string
+      roles:
+        description: User's roles in the system
+        example:
+        - USER
+        - ADMIN
+        items:
+          type: string
+        type: array
       username:
+        description: User's chosen username
         example: john_doe
         type: string
     type: object
 host: localhost:8080
 info:
   contact: {}
-  description: A RESTful API for user management with CRUD operations
+  description: A RESTful API for user management with CRUD operations and JWT authentication
   title: Enterprise CRUD API
   version: 1.0.0
 paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password, returns JWT token
+      parameters:
+      - description: User login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/user.LoginResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+      summary: User login
+      tags:
+      - auth
   /api/v1/users:
     post:
       consumes:
@@ -93,6 +175,14 @@ paths:
           description: User found
           schema:
             $ref: '#/definitions/user.UserResponse'
+        "401":
+          description: Unauthorized - invalid or missing token
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+        "403":
+          description: Forbidden - insufficient permissions
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
         "404":
           description: User not found
           schema:
@@ -101,26 +191,41 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/user.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get user by email
       tags:
       - users
-  /health:
+  /api/v1/users/profile:
     get:
-      description: Check if the service is running
+      description: Get the profile of the currently authenticated user with their
+        roles
       produces:
       - application/json
       responses:
         "200":
-          description: Service is healthy
+          description: User profile retrieved successfully
           schema:
-            properties:
-              status:
-                example: healthy
-                type: string
-            type: object
-      summary: Health check endpoint
+            $ref: '#/definitions/user.UserResponse'
+        "401":
+          description: Unauthorized - invalid or missing token
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/user.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
       tags:
-      - health
+      - users
 schemes:
 - http
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

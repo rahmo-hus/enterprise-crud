@@ -1,49 +1,56 @@
 {
+    "schemes": [
+        "http"
+    ],
     "swagger": "2.0",
     "info": {
-        "description": "A RESTful API for user management with CRUD operations",
+        "description": "A RESTful API for user management with CRUD operations and JWT authentication",
         "title": "Enterprise CRUD API",
         "contact": {},
         "version": "1.0.0"
     },
     "host": "localhost:8080",
     "basePath": "/",
-    "schemes": [
-        "http"
-    ],
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Type \"Bearer\" followed by a space and JWT token.",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        }
-    },
     "paths": {
-        "/api/v1/users/profile": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
+        "/api/v1/auth/login": {
+            "post": {
+                "description": "Authenticate user with email and password, returns JWT token",
+                "consumes": [
+                    "application/json"
                 ],
-                "description": "Get the profile of the currently authenticated user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "auth"
                 ],
-                "summary": "Get current user profile",
+                "summary": "User login",
+                "parameters": [
+                    {
+                        "description": "User login credentials",
+                        "name": "credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.LoginRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "User profile retrieved successfully",
+                        "description": "Login successful",
                         "schema": {
-                            "$ref": "#/definitions/user.UserResponse"
+                            "$ref": "#/definitions/user.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/user.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - invalid or missing token",
+                        "description": "Invalid credentials",
                         "schema": {
                             "$ref": "#/definitions/user.ErrorResponse"
                         }
@@ -109,8 +116,50 @@
                 }
             }
         },
+        "/api/v1/users/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the profile of the currently authenticated user with their roles",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get current user profile",
+                "responses": {
+                    "200": {
+                        "description": "User profile retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/user.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/user.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/{email}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get user details by email address",
                 "produces": [
                     "application/json"
@@ -135,6 +184,18 @@
                             "$ref": "#/definitions/user.UserResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/user.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - insufficient permissions",
+                        "schema": {
+                            "$ref": "#/definitions/user.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "User not found",
                         "schema": {
@@ -145,84 +206,6 @@
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/user.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/auth/login": {
-            "post": {
-                "description": "Authenticate user with email and password, returns JWT token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "User login",
-                "parameters": [
-                    {
-                        "description": "User login credentials",
-                        "name": "credentials",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user.LoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Login successful",
-                        "schema": {
-                            "$ref": "#/definitions/user.LoginResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request data",
-                        "schema": {
-                            "$ref": "#/definitions/user.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid credentials",
-                        "schema": {
-                            "$ref": "#/definitions/user.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/user.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/health": {
-            "get": {
-                "description": "Check if the service is running",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "health"
-                ],
-                "summary": "Health check endpoint",
-                "responses": {
-                    "200": {
-                        "description": "Service is healthy",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "status": {
-                                    "type": "string",
-                                    "example": "healthy"
-                                }
-                            }
                         }
                     }
                 }
@@ -239,15 +222,18 @@
             ],
             "properties": {
                 "email": {
+                    "description": "User's email address - must be unique",
                     "type": "string",
                     "example": "user@example.com"
                 },
                 "password": {
+                    "description": "Password - must be at least 8 characters",
                     "type": "string",
                     "minLength": 8,
                     "example": "password123"
                 },
                 "username": {
+                    "description": "Username - must be at least 3 characters",
                     "type": "string",
                     "minLength": 3,
                     "example": "john_doe"
@@ -258,10 +244,12 @@
             "type": "object",
             "properties": {
                 "error": {
+                    "description": "Error message",
                     "type": "string",
                     "example": "Error message"
                 },
                 "message": {
+                    "description": "Additional error details",
                     "type": "string",
                     "example": "Additional error details"
                 }
@@ -275,10 +263,12 @@
             ],
             "properties": {
                 "email": {
+                    "description": "User's email address",
                     "type": "string",
                     "example": "user@example.com"
                 },
                 "password": {
+                    "description": "User's password",
                     "type": "string",
                     "example": "password123"
                 }
@@ -288,15 +278,22 @@
             "type": "object",
             "properties": {
                 "expires_at": {
+                    "description": "Token expiration timestamp",
                     "type": "integer",
                     "example": 1735689600
                 },
                 "token": {
+                    "description": "JWT access token",
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 },
                 "user": {
-                    "$ref": "#/definitions/user.UserResponse"
+                    "description": "User information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    ]
                 }
             }
         },
@@ -304,18 +301,40 @@
             "type": "object",
             "properties": {
                 "email": {
+                    "description": "User's email address",
                     "type": "string",
                     "example": "user@example.com"
                 },
                 "id": {
+                    "description": "Unique identifier for the user",
                     "type": "string",
                     "example": "123e4567-e89b-12d3-a456-426614174000"
                 },
+                "roles": {
+                    "description": "User's roles in the system",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "USER",
+                        "ADMIN"
+                    ]
+                },
                 "username": {
+                    "description": "User's chosen username",
                     "type": "string",
                     "example": "john_doe"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }

@@ -94,11 +94,18 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// Return successful response
+	// Extract role names for response
+	roleNames := make([]string, len(createdUser.Roles))
+	for i, role := range createdUser.Roles {
+		roleNames[i] = role.Name
+	}
+
+	// Return successful response with roles
 	response := userDTO.UserResponse{
 		ID:       createdUser.ID,
 		Email:    createdUser.Email,
 		Username: createdUser.Username,
+		Roles:    roleNames,
 	}
 
 	c.JSON(http.StatusCreated, response)
@@ -109,8 +116,11 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 // @Description Get user details by email address
 // @Tags users
 // @Produce json
+// @Security BearerAuth
 // @Param email path string true "User email"
 // @Success 200 {object} userDTO.UserResponse "User found"
+// @Failure 401 {object} userDTO.ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 403 {object} userDTO.ErrorResponse "Forbidden - insufficient permissions"
 // @Failure 404 {object} userDTO.ErrorResponse "User not found"
 // @Failure 500 {object} userDTO.ErrorResponse "Internal server error"
 // @Router /api/v1/users/{email} [get]
@@ -136,11 +146,18 @@ func (h *UserHandler) GetUserByEmail(c *gin.Context) {
 		return
 	}
 
-	// Return successful response
+	// Extract role names for response
+	roleNames := make([]string, len(foundUser.Roles))
+	for i, role := range foundUser.Roles {
+		roleNames[i] = role.Name
+	}
+
+	// Return successful response with roles
 	response := userDTO.UserResponse{
 		ID:       foundUser.ID,
 		Email:    foundUser.Email,
 		Username: foundUser.Username,
+		Roles:    roleNames,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -180,8 +197,15 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token
-	token, err := h.jwtService.GenerateToken(authenticatedUser.ID, authenticatedUser.Email, authenticatedUser.Username)
+	// Extract role names from user roles for JWT token
+	// Convert the Role objects to just their names (strings)
+	roleNames := make([]string, len(authenticatedUser.Roles))
+	for i, role := range authenticatedUser.Roles {
+		roleNames[i] = role.Name
+	}
+
+	// Generate JWT token with user roles included
+	token, err := h.jwtService.GenerateToken(authenticatedUser.ID, authenticatedUser.Email, authenticatedUser.Username, roleNames)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, userDTO.ErrorResponse{
 			Error:   "Failed to generate token",
@@ -193,12 +217,13 @@ func (h *UserHandler) Login(c *gin.Context) {
 	// Calculate expiration time (matching JWT service expiration)
 	expiresAt := time.Now().Add(24 * 30 * time.Hour).Unix() // 30 days (long-lived token)
 
-	// Return successful response
+	// Return successful response with roles
 	response := userDTO.LoginResponse{
 		User: userDTO.UserResponse{
 			ID:       authenticatedUser.ID,
 			Email:    authenticatedUser.Email,
 			Username: authenticatedUser.Username,
+			Roles:    roleNames, // Include user roles in response
 		},
 		Token:     token,
 		ExpiresAt: expiresAt,
@@ -209,7 +234,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 // GetProfile handles GET requests to retrieve the current user's profile
 // @Summary Get current user profile
-// @Description Get the profile of the currently authenticated user
+// @Description Get the profile of the currently authenticated user with their roles
 // @Tags users
 // @Produce json
 // @Security BearerAuth
@@ -228,18 +253,22 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	// Return user profile
+	// Get user roles from JWT token
+	userRoles, _ := auth.GetUserRoles(c) // Empty slice if no roles found
+
+	// Return user profile with roles
 	response := userDTO.UserResponse{
 		ID:       userID,
 		Email:    userEmail,
 		Username: userUsername,
+		Roles:    userRoles,
 	}
 
 	c.JSON(http.StatusOK, response)
 }
 
 // RegisterRoutes registers user routes with the gin router
-// Sets up POST /users and GET /users/:email endpoints
+// Sets up all user-related endpoints with appropriate role-based protection
 func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	// Create JWT middleware
 	jwtMiddleware := auth.NewJWTMiddleware(h.jwtService)
@@ -247,11 +276,20 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	// User routes group
 	userRoutes := router.Group("/users")
 	{
-		userRoutes.POST("", h.CreateUser)           // Create new user (public)
-		userRoutes.GET("/:email", h.GetUserByEmail) // Get user by email (public)
+		// Public routes (no authentication required)
+		userRoutes.POST("", h.CreateUser)           // Create new user (public registration)
 		
-		// Protected routes (require authentication)
-		userRoutes.GET("/profile", jwtMiddleware.AuthRequired(), h.GetProfile) // Get current user profile
+		// Admin-only routes (require ADMIN role)
+		userRoutes.GET("/:email", 
+			jwtMiddleware.AuthRequired(),    // First check if user is authenticated
+			auth.RequireAdmin(),             // Then check if user has ADMIN role
+			h.GetUserByEmail)                // Admin can view any user by email
+		
+		// User routes (require any authenticated user)
+		userRoutes.GET("/profile", 
+			jwtMiddleware.AuthRequired(),    // Check authentication
+			auth.RequireUser(),              // Require USER or ADMIN role
+			h.GetProfile)                    // Get current user profile
 	}
 }
 

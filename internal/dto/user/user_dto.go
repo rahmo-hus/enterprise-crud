@@ -16,6 +16,7 @@ type UserResponse struct {
 	ID       uuid.UUID `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`       // Unique identifier for the user
 	Email    string    `json:"email" example:"user@example.com"`    // User's email address
 	Username string    `json:"username" example:"john_doe"` // User's chosen username
+	Roles    []string  `json:"roles" example:"USER,ADMIN"` // User's roles in the system
 }
 
 // LoginRequest represents the request payload for user login

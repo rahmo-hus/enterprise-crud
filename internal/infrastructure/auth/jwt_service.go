@@ -10,16 +10,18 @@ import (
 
 // JWTService handles JWT token operations
 type JWTService struct {
-	secretKey     []byte
-	issuer        string
-	expiration    time.Duration
+	secretKey  []byte
+	issuer     string
+	expiration time.Duration
 }
 
 // JWTClaims represents the JWT claims structure
+// Now includes roles for authorization checking
 type JWTClaims struct {
 	UserID   uuid.UUID `json:"user_id"`
 	Email    string    `json:"email"`
 	Username string    `json:"username"`
+	Roles    []string  `json:"roles"` // Array of role names (ADMIN, USER, etc.)
 	jwt.RegisteredClaims
 }
 
@@ -32,14 +34,15 @@ func NewJWTService(secretKey string, issuer string, expiration time.Duration) *J
 	}
 }
 
-// GenerateToken generates a new JWT token for the user
-func (j *JWTService) GenerateToken(userID uuid.UUID, email, username string) (string, error) {
+// GenerateToken generates a new JWT token for the user with their roles
+func (j *JWTService) GenerateToken(userID uuid.UUID, email, username string, roles []string) (string, error) {
 	now := time.Now()
-	
+
 	claims := &JWTClaims{
 		UserID:   userID,
 		Email:    email,
 		Username: username,
+		Roles:    roles, // Include user roles in the token
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(j.expiration)),
 			IssuedAt:  jwt.NewNumericDate(now),

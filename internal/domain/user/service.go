@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"enterprise-crud/internal/domain/role"
 )
 
 // Service defines the business logic interface for user operations
@@ -20,13 +21,17 @@ type Service interface {
 // This is the concrete implementation of business logic, similar to Spring Boot's @Service classes
 // Encapsulates all user-related business operations and rules
 type userService struct {
-	repo Repository // Repository dependency for data persistence - similar to @Autowired in Spring
+	repo     Repository      // Repository dependency for data persistence - similar to @Autowired in Spring
+	roleRepo role.Repository // Role repository to assign default roles to users
 }
 
 // NewUserService creates a new instance of userService
 // Returns a service implementation for user business logic
-func NewUserService(repo Repository) Service {
-	return &userService{repo: repo}
+func NewUserService(repo Repository, roleRepo role.Repository) Service {
+	return &userService{
+		repo:     repo,
+		roleRepo: roleRepo,
+	}
 }
 
 // CreateUser creates a new user with the provided information
@@ -66,16 +71,26 @@ func (s *userService) CreateUser(ctx context.Context, email, username, password 
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// STEP 3: DOMAIN ENTITY CREATION
-	// Create new user entity with all required fields
+	// STEP 3: GET DEFAULT USER ROLE
+	// Every new user gets the "USER" role by default
+	// This is a business rule: all registered users start as regular users
+	userRole, err := s.roleRepo.GetByName(ctx, role.RoleUser)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get default user role: %w", err)
+	}
+
+	// STEP 4: DOMAIN ENTITY CREATION
+	// Create new user entity with all required fields and default role
 	user := &User{
 		ID:       uuid.New(),             // Generate unique identifier (UUID v4)
 		Email:    email,                  // Set email address (validated by HTTP layer)
 		Username: username,               // Set username (validated by HTTP layer)
 		Password: string(hashedPassword), // Store hashed password
+		Roles:    []role.Role{*userRole}, // Assign default USER role
 	}
 
-	// Persist user to database
+	// STEP 5: PERSIST USER TO DATABASE
+	// This will save both the user and the role assignment
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
