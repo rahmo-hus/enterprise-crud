@@ -2,10 +2,11 @@ package user
 
 import (
 	"context"
-	"fmt"
+	"enterpr
+	"errors"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"enterprise-crud/internal/domain/role"
+	"gorm.io/gorm"
 )
 
 // Service defines the business logic interface for user operations
@@ -58,7 +59,11 @@ func (s *userService) CreateUser(ctx context.Context, email, username, password 
 	existingUser, err := s.repo.GetByEmail(ctx, email)
 	if err == nil && existingUser != nil {
 		// Return business logic error (not a system error)
-		return nil, fmt.Errorf("user with email %s already exists", email)
+		return nil, NewUserExistsError(email)
+	}
+	// If error is not "record not found", it's a database error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, NewUserError(ErrUserRetrievalFailed, err)
 	}
 
 	// STEP 2: SECURITY IMPLEMENTATION
@@ -68,7 +73,7 @@ func (s *userService) CreateUser(ctx context.Context, email, username, password 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		// Return wrapped error with context
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		return nil, NewUserError(ErrPasswordHashFailed, err)
 	}
 
 	// STEP 3: GET DEFAULT USER ROLE
@@ -76,7 +81,7 @@ func (s *userService) CreateUser(ctx context.Context, email, username, password 
 	// This is a business rule: all registered users start as regular users
 	userRole, err := s.roleRepo.GetByName(ctx, role.RoleUser)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get default user role: %w", err)
+		return nil, NewUserError(ErrRoleRetrievalFailed, err)
 	}
 
 	// STEP 4: DOMAIN ENTITY CREATION
@@ -92,7 +97,7 @@ func (s *userService) CreateUser(ctx context.Context, email, username, password 
 	// STEP 5: PERSIST USER TO DATABASE
 	// This will save both the user and the role assignment
 	if err := s.repo.Create(ctx, user); err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
+		return nil, NewUserError(ErrUserCreationFailed, err)
 	}
 
 	return user, nil
@@ -103,13 +108,16 @@ func (s *userService) CreateUser(ctx context.Context, email, username, password 
 func (s *userService) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	user, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user by email: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, NewUserError(ErrUserRetrievalFailed, err)
 	}
 	return user, nil
 }
 
 // AuthenticateUser validates user credentials and returns user if valid
-// 
+//
 // AUTHENTICATION FLOW:
 // 1. Retrieve user by email from database
 // 2. Compare provided password with stored hashed password
@@ -124,7 +132,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, email, password stri
 	user, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
 		// Return generic error to prevent user enumeration
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	// STEP 2: VERIFY PASSWORD
@@ -132,7 +140,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, email, password stri
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		// Return generic error to prevent user enumeration
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, ErrInvalidCredentials
 	}
 
 	// STEP 3: RETURN AUTHENTICATED USER

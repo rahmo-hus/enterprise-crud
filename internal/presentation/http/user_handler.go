@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 // - Makes testing easy (can inject mock services)
 // - Makes the code flexible (can swap service implementations)
 type UserHandler struct {
-	userService user.Service // Service layer for user business logic (INTERFACE, not concrete type)
+	userService user.Service     // Service layer for user business logic (INTERFACE, not concrete type)
 	jwtService  *auth.JWTService // JWT service for token generation and validation
 }
 
@@ -77,20 +78,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	// Call service to create user
 	createdUser, err := h.userService.CreateUser(c.Request.Context(), req.Email, req.Username, req.Password)
 	if err != nil {
-		// Check if error is due to existing user
-		if err.Error() == "user with email "+req.Email+" already exists" {
-			c.JSON(http.StatusConflict, userDTO.ErrorResponse{
-				Error:   "User already exists",
-				Message: err.Error(),
-			})
-			return
-		}
-
-		// Handle other creation errors
-		c.JSON(http.StatusInternalServerError, userDTO.ErrorResponse{
-			Error:   "Failed to create user",
-			Message: err.Error(),
-		})
+		h.handleUserError(c, err)
 		return
 	}
 
@@ -139,10 +127,7 @@ func (h *UserHandler) GetUserByEmail(c *gin.Context) {
 	// Call service to get user
 	foundUser, err := h.userService.GetUserByEmail(c.Request.Context(), email)
 	if err != nil {
-		c.JSON(http.StatusNotFound, userDTO.ErrorResponse{
-			Error:   "User not found",
-			Message: err.Error(),
-		})
+		h.handleUserError(c, err)
 		return
 	}
 
@@ -190,10 +175,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	// Authenticate user
 	authenticatedUser, err := h.userService.AuthenticateUser(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, userDTO.ErrorResponse{
-			Error:   "Authentication failed",
-			Message: err.Error(),
-		})
+		h.handleUserError(c, err)
 		return
 	}
 
@@ -267,6 +249,47 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// handleUserError maps user domain errors to appropriate HTTP responses
+func (h *UserHandler) handleUserError(c *gin.Context, err error) {
+	var userErr *user.UserError
+	if errors.As(err, &userErr) {
+		switch userErr.Code {
+		case "USER_NOT_FOUND":
+			c.JSON(http.StatusNotFound, userDTO.ErrorResponse{
+				Error:   "User not found",
+				Message: userErr.Message,
+			})
+		case "USER_EXISTS":
+			c.JSON(http.StatusConflict, userDTO.ErrorResponse{
+				Error:   "User already exists",
+				Message: userErr.Message,
+			})
+		case "INVALID_CREDENTIALS":
+			c.JSON(http.StatusUnauthorized, userDTO.ErrorResponse{
+				Error:   "Authentication failed",
+				Message: userErr.Message,
+			})
+		case "PASSWORD_HASH_FAILED", "USER_CREATION_FAILED", "USER_RETRIEVAL_FAILED", "ROLE_RETRIEVAL_FAILED":
+			c.JSON(http.StatusInternalServerError, userDTO.ErrorResponse{
+				Error:   "Internal server error",
+				Message: "An error occurred while processing your request",
+			})
+		default:
+			c.JSON(http.StatusInternalServerError, userDTO.ErrorResponse{
+				Error:   "Internal server error",
+				Message: "An unexpected error occurred",
+			})
+		}
+		return
+	}
+
+	// Handle non-user errors
+	c.JSON(http.StatusInternalServerError, userDTO.ErrorResponse{
+		Error:   "Internal server error",
+		Message: "An unexpected error occurred",
+	})
+}
+
 // RegisterRoutes registers user routes with the gin router
 // Sets up all user-related endpoints with appropriate role-based protection
 func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
@@ -277,19 +300,19 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	userRoutes := router.Group("/users")
 	{
 		// Public routes (no authentication required)
-		userRoutes.POST("", h.CreateUser)           // Create new user (public registration)
-		
+		userRoutes.POST("", h.CreateUser) // Create new user (public registration)
+
 		// Admin-only routes (require ADMIN role)
-		userRoutes.GET("/:email", 
-			jwtMiddleware.AuthRequired(),    // First check if user is authenticated
-			auth.RequireAdmin(),             // Then check if user has ADMIN role
-			h.GetUserByEmail)                // Admin can view any user by email
-		
+		userRoutes.GET("/:email",
+			jwtMiddleware.AuthRequired(), // First check if user is authenticated
+			auth.RequireAdmin(),          // Then check if user has ADMIN role
+			h.GetUserByEmail)             // Admin can view any user by email
+
 		// User routes (require any authenticated user)
-		userRoutes.GET("/profile", 
-			jwtMiddleware.AuthRequired(),    // Check authentication
-			auth.RequireUser(),              // Require USER or ADMIN role
-			h.GetProfile)                    // Get current user profile
+		userRoutes.GET("/profile",
+			jwtMiddleware.AuthRequired(), // Check authentication
+			auth.RequireUser(),           // Require USER or ADMIN role
+			h.GetProfile)                 // Get current user profile
 	}
 }
 

@@ -29,6 +29,9 @@ type MockUserService struct {
 // Returns user and error based on test scenario configuration
 func (m *MockUserService) CreateUser(ctx context.Context, email, username, password string) (*user.User, error) {
 	args := m.Called(ctx, email, username, password)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*user.User), args.Error(1)
 }
 
@@ -36,6 +39,9 @@ func (m *MockUserService) CreateUser(ctx context.Context, email, username, passw
 // Returns user and error based on test scenario configuration
 func (m *MockUserService) GetUserByEmail(ctx context.Context, email string) (*user.User, error) {
 	args := m.Called(ctx, email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*user.User), args.Error(1)
 }
 
@@ -43,6 +49,9 @@ func (m *MockUserService) GetUserByEmail(ctx context.Context, email string) (*us
 // Returns user and error based on test scenario configuration
 func (m *MockUserService) AuthenticateUser(ctx context.Context, email, password string) (*user.User, error) {
 	args := m.Called(ctx, email, password)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*user.User), args.Error(1)
 }
 
@@ -51,15 +60,15 @@ func (m *MockUserService) AuthenticateUser(ctx context.Context, email, password 
 func setupTestRouter(userService user.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	// Create JWT service for testing
 	jwtService := auth.NewJWTService("test-secret-key", "test-issuer", time.Hour)
-	
+
 	// Create handler and register routes
 	userHandler := NewUserHandler(userService, jwtService)
 	v1 := router.Group("/api/v1")
 	userHandler.RegisterRoutes(v1)
-	
+
 	return router
 }
 
@@ -76,11 +85,11 @@ func generateTestJWT(roles []string) string {
 // Covers successful creation, validation errors, and service errors
 func TestUserHandler_CreateUser(t *testing.T) {
 	tests := []struct {
-		name           string                    // Test case name
-		requestBody    interface{}               // Request body to send
-		mockFunc       func(*MockUserService)    // Mock service setup function
-		expectedStatus int                       // Expected HTTP status code
-		expectedBody   string                    // Expected response body content
+		name           string                 // Test case name
+		requestBody    interface{}            // Request body to send
+		mockFunc       func(*MockUserService) // Mock service setup function
+		expectedStatus int                    // Expected HTTP status code
+		expectedBody   string                 // Expected response body content
 	}{
 		{
 			name: "successful user creation",
@@ -104,7 +113,7 @@ func TestUserHandler_CreateUser(t *testing.T) {
 		{
 			name: "invalid request body - invalid email",
 			requestBody: map[string]interface{}{
-				"email": "invalid-email", // Invalid email format
+				"email":    "invalid-email", // Invalid email format
 				"username": "testuser",
 				"password": "password123",
 			},
@@ -117,7 +126,7 @@ func TestUserHandler_CreateUser(t *testing.T) {
 		{
 			name: "invalid request body - password too short",
 			requestBody: map[string]interface{}{
-				"email": "test@example.com",
+				"email":    "test@example.com",
 				"username": "testuser",
 				"password": "12345", // Password too short (less than 8 characters)
 			},
@@ -130,7 +139,7 @@ func TestUserHandler_CreateUser(t *testing.T) {
 		{
 			name: "invalid request body - username too short",
 			requestBody: map[string]interface{}{
-				"email": "test@example.com",
+				"email":    "test@example.com",
 				"username": "ab", // Username too short (less than 3 characters)
 				"password": "password123",
 			},
@@ -161,7 +170,7 @@ func TestUserHandler_CreateUser(t *testing.T) {
 			},
 			mockFunc: func(m *MockUserService) {
 				// Mock CreateUser to return user already exists error
-				m.On("CreateUser", mock.Anything, "existing@example.com", "existinguser", "password123").Return((*user.User)(nil), errors.New("user with email existing@example.com already exists"))
+				m.On("CreateUser", mock.Anything, "existing@example.com", "existinguser", "password123").Return((*user.User)(nil), user.NewUserExistsError("existing@example.com"))
 			},
 			expectedStatus: http.StatusConflict,
 			expectedBody:   `"error":"User already exists"`,
@@ -175,10 +184,10 @@ func TestUserHandler_CreateUser(t *testing.T) {
 			},
 			mockFunc: func(m *MockUserService) {
 				// Mock CreateUser to return internal error
-				m.On("CreateUser", mock.Anything, "test@example.com", "testuser", "password123").Return((*user.User)(nil), errors.New("database connection failed"))
+				m.On("CreateUser", mock.Anything, "test@example.com", "testuser", "password123").Return((*user.User)(nil), user.NewUserError(user.ErrUserCreationFailed, errors.New("database connection failed")))
 			},
 			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `"error":"Failed to create user"`,
+			expectedBody:   `"error":"Internal server error"`,
 		},
 	}
 
@@ -193,7 +202,7 @@ func TestUserHandler_CreateUser(t *testing.T) {
 
 			// Prepare request body
 			bodyBytes, _ := json.Marshal(tt.requestBody)
-			
+
 			// Create HTTP request
 			req, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
@@ -218,11 +227,11 @@ func TestUserHandler_CreateUser(t *testing.T) {
 // Covers successful retrieval, missing parameter, and not found scenarios
 func TestUserHandler_GetUserByEmail(t *testing.T) {
 	tests := []struct {
-		name           string                    // Test case name
-		email          string                    // Email parameter in URL
-		mockFunc       func(*MockUserService)    // Mock service setup function
-		expectedStatus int                       // Expected HTTP status code
-		expectedBody   string                    // Expected response body content
+		name           string                 // Test case name
+		email          string                 // Email parameter in URL
+		mockFunc       func(*MockUserService) // Mock service setup function
+		expectedStatus int                    // Expected HTTP status code
+		expectedBody   string                 // Expected response body content
 	}{
 		{
 			name:  "successful user retrieval",
@@ -244,7 +253,7 @@ func TestUserHandler_GetUserByEmail(t *testing.T) {
 			email: "notfound@example.com",
 			mockFunc: func(m *MockUserService) {
 				// Mock GetUserByEmail to return not found error
-				m.On("GetUserByEmail", mock.Anything, "notfound@example.com").Return((*user.User)(nil), errors.New("user not found"))
+				m.On("GetUserByEmail", mock.Anything, "notfound@example.com").Return((*user.User)(nil), user.ErrUserNotFound)
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody:   `"error":"User not found"`,

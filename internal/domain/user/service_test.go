@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"enterprise-crud/internal/domain/role"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	"enterprise-crud/internal/domain/role"
 )
 
 // MockRepository is a mock implementation of Repository interface
@@ -26,10 +26,13 @@ func (m *MockRepository) Create(ctx context.Context, user *User) error {
 	return args.Error(0)
 }
 
-// GetByEmail mocks the GetByEmail method of Repository interface  
+// GetByEmail mocks the GetByEmail method of Repository interface
 // Returns user and error based on test scenario configuration
 func (m *MockRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	args := m.Called(ctx, email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*User), args.Error(1)
 }
 
@@ -52,10 +55,10 @@ func (m *MockRoleRepository) GetByName(ctx context.Context, name string) (*role.
 // Covers successful creation, existing user, and error scenarios
 func TestUserService_CreateUser(t *testing.T) {
 	tests := []struct {
-		name         string                     // Test case name
-		email        string                     // Input email
-		username     string                     // Input username
-		password     string                     // Input password
+		name         string                    // Test case name
+		email        string                    // Input email
+		username     string                    // Input username
+		password     string                    // Input password
 		mockFunc     func(*MockRepository)     // Mock repository setup function
 		roleMockFunc func(*MockRoleRepository) // Mock role repository setup function
 		wantErr      bool                      // Expected error occurrence
@@ -116,7 +119,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				m.On("GetByName", mock.Anything, "USER").Return(userRole, nil)
 			},
 			wantErr: true,
-			errMsg:  "failed to create user: database error",
+			errMsg:  "failed to create user",
 		},
 	}
 
@@ -145,7 +148,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				assert.Equal(t, tt.email, result.Email)
 				assert.Equal(t, tt.username, result.Username)
 				assert.NotEmpty(t, result.ID)
-				
+
 				// Verify password is hashed
 				err = bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(tt.password))
 				assert.NoError(t, err)
@@ -161,8 +164,8 @@ func TestUserService_CreateUser(t *testing.T) {
 // Covers successful retrieval and error scenarios
 func TestUserService_GetUserByEmail(t *testing.T) {
 	tests := []struct {
-		name         string                     // Test case name
-		email        string                     // Input email
+		name         string                    // Test case name
+		email        string                    // Input email
 		mockFunc     func(*MockRepository)     // Mock repository setup function
 		roleMockFunc func(*MockRoleRepository) // Mock role repository setup function
 		wantErr      bool                      // Expected error occurrence
@@ -196,7 +199,7 @@ func TestUserService_GetUserByEmail(t *testing.T) {
 				// No role operations expected for GetUserByEmail
 			},
 			wantErr: true,
-			errMsg:  "failed to get user by email",
+			errMsg:  "user not found",
 		},
 	}
 
