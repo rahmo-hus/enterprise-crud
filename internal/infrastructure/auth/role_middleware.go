@@ -72,6 +72,12 @@ func RequireUser() gin.HandlerFunc {
 	return RequireRole("USER", "ADMIN")
 }
 
+// RequireOrganizer is a convenience function that requires ORGANIZER or ADMIN role
+// Use this for endpoints that only event organizers should access
+func RequireOrganizer() gin.HandlerFunc {
+	return RequireRole("ORGANIZER", "ADMIN")
+}
+
 // GetUserRoles extracts the roles from the current user context
 // This helper function can be used in handlers to get the user's roles
 func GetUserRoles(c *gin.Context) ([]string, bool) {

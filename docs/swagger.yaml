@@ -1,5 +1,126 @@
 basePath: /
 definitions:
+  event.CreateEventRequest:
+    properties:
+      description:
+        example: An amazing summer concert with live music
+        type: string
+      event_date:
+        example: "2024-08-15T20:00:00Z"
+        type: string
+      ticket_price:
+        example: 50
+        minimum: 0
+        type: number
+      title:
+        example: Summer Concert
+        type: string
+      total_tickets:
+        example: 100
+        minimum: 1
+        type: integer
+      venue_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - event_date
+    - ticket_price
+    - title
+    - total_tickets
+    - venue_id
+    type: object
+  event.ErrorResponse:
+    properties:
+      error:
+        example: validation_error
+        type: string
+      message:
+        example: Invalid input data
+        type: string
+    type: object
+  event.EventListResponse:
+    properties:
+      count:
+        type: integer
+      events:
+        items:
+          $ref: '#/definitions/event.EventResponse'
+        type: array
+    type: object
+  event.EventResponse:
+    properties:
+      available_tickets:
+        example: 75
+        type: integer
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      description:
+        example: An amazing summer concert with live music
+        type: string
+      event_date:
+        example: "2024-08-15T20:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      organizer_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      status:
+        example: ACTIVE
+        type: string
+      ticket_price:
+        example: 50
+        type: number
+      title:
+        example: Summer Concert
+        type: string
+      total_tickets:
+        example: 100
+        type: integer
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      venue_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  event.SuccessResponse:
+    properties:
+      message:
+        example: Event created successfully
+        type: string
+    type: object
+  event.UpdateEventRequest:
+    properties:
+      description:
+        example: An amazing summer concert with live music - Updated
+        type: string
+      event_date:
+        example: "2024-08-15T20:00:00Z"
+        type: string
+      ticket_price:
+        example: 60
+        minimum: 0
+        type: number
+      title:
+        example: Summer Concert - Updated
+        type: string
+      total_tickets:
+        example: 150
+        minimum: 1
+        type: integer
+      venue_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - event_date
+    - ticket_price
+    - title
+    - total_tickets
+    - venue_id
+    type: object
   user.CreateUserRequest:
     properties:
       email:
@@ -87,7 +208,8 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: A RESTful API for user management with CRUD operations and JWT authentication
+  description: A RESTful API for user management and event ticketing system with CRUD
+    operations and JWT authentication
   title: Enterprise CRUD API
   version: 1.0.0
 paths:
@@ -125,6 +247,255 @@ paths:
       summary: User login
       tags:
       - auth
+  /api/v1/events:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all events
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/event.EventListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+      summary: Get all events
+      tags:
+      - events
+    post:
+      consumes:
+      - application/json
+      description: Create a new event (requires ORGANIZER or ADMIN role)
+      parameters:
+      - description: Event data
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/event.CreateEventRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/event.EventResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new event
+      tags:
+      - events
+  /api/v1/events/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an event (only by organizer, only if no tickets sold)
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/event.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete event
+      tags:
+      - events
+    get:
+      consumes:
+      - application/json
+      description: Get event details by ID
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/event.EventResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+      summary: Get event by ID
+      tags:
+      - events
+    put:
+      consumes:
+      - application/json
+      description: Update an existing event (only by organizer)
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Event data
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/event.UpdateEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/event.EventResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update event
+      tags:
+      - events
+  /api/v1/events/{id}/cancel:
+    patch:
+      consumes:
+      - application/json
+      description: Cancel an event (only by organizer)
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/event.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel event
+      tags:
+      - events
+  /api/v1/events/my-events:
+    get:
+      consumes:
+      - application/json
+      description: Get events created by the current organizer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/event.EventListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/event.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get my events
+      tags:
+      - events
   /api/v1/users:
     post:
       consumes:

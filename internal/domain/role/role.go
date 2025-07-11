@@ -26,8 +26,9 @@ type Role struct {
 
 // Common role names used in the application
 const (
-	RoleAdmin = "ADMIN" // Administrator with full access
-	RoleUser  = "USER"  // Regular user with basic access
+	RoleAdmin     = "ADMIN"     // Administrator with full access
+	RoleUser      = "USER"      // Regular user with basic access
+	RoleOrganizer = "ORGANIZER" // Event organizer with event management access
 )
 
 // TableName tells GORM what table to use for this model

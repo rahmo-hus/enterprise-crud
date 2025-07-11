@@ -1,6 +1,6 @@
 // @title Enterprise CRUD API
 // @version 1.0.0
-// @description A RESTful API for user management with CRUD operations and JWT authentication
+// @description A RESTful API for user management and event ticketing system with CRUD operations and JWT authentication
 // @host localhost:8080
 // @BasePath /
 // @schemes http

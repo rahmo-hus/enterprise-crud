@@ -13,6 +13,7 @@ import (
 
 	_ "enterprise-crud/docs"
 	"enterprise-crud/internal/config"
+	"enterprise-crud/internal/domain/event"
 	"enterprise-crud/internal/domain/user"
 	"enterprise-crud/internal/infrastructure/auth"
 	"enterprise-crud/internal/infrastructure/database"
@@ -71,12 +72,18 @@ func (a *App) Run() error {
 	// Initialize dependencies
 	userRepo := database.NewUserRepository(dbConn.DB)
 	roleRepo := database.NewRoleRepository(dbConn.DB)
+	venueRepo := database.NewVenueRepository(dbConn.DB)
+	eventRepo := database.NewEventRepository(dbConn.DB)
+
 	userService := user.NewUserService(userRepo, roleRepo)
+	eventService := event.NewService(eventRepo, venueRepo)
+
 	jwtService := auth.NewJWTService(jwtSecret, jwtIssuer, time.Duration(jwtExpirationHours)*time.Hour)
 	userHandler := httpHandlers.NewUserHandler(userService, jwtService)
+	eventHandler := httpHandlers.NewEventHandler(eventService, jwtService)
 
 	// Setup HTTP server
-	router := a.setupRouter(userHandler)
+	router := a.setupRouter(userHandler, eventHandler)
 
 	a.server = &http.Server{
 		Addr:         ":" + a.config.Server.Port,
@@ -98,7 +105,7 @@ func (a *App) Run() error {
 	return a.waitForShutdown()
 }
 
-func (a *App) setupRouter(userHandler *httpHandlers.UserHandler) *gin.Engine {
+func (a *App) setupRouter(userHandler *httpHandlers.UserHandler, eventHandler *httpHandlers.EventHandler) *gin.Engine {
 	if a.config.App.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -125,6 +132,7 @@ func (a *App) setupRouter(userHandler *httpHandlers.UserHandler) *gin.Engine {
 	{
 		userHandler.RegisterRoutes(v1)
 		userHandler.RegisterAuthRoutes(v1)
+		eventHandler.RegisterRoutes(v1)
 	}
 
 	return router
