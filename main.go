@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// Create application with dependencies
-	application := app.NewWireApp(cfg, deps.DBConn, deps.UserHandler)
+	application := app.NewWireApp(cfg, deps.DBConn, deps.UserHandler, deps.EventHandler, deps.OrderHandler, deps.VenueHandler)
 
 	// Run application (handles startup and graceful shutdown)
 	if err := application.Run(); err != nil {

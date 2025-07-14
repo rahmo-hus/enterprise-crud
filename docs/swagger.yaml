@@ -121,6 +121,50 @@ definitions:
     - total_tickets
     - venue_id
     type: object
+  order.CreateOrderRequest:
+    properties:
+      event_id:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - event_id
+    - quantity
+    type: object
+  order.ErrorResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  order.OrderListResponse:
+    properties:
+      count:
+        type: integer
+      orders:
+        items:
+          $ref: '#/definitions/order.OrderResponse'
+        type: array
+    type: object
+  order.OrderResponse:
+    properties:
+      created_at:
+        type: string
+      event_id:
+        type: string
+      id:
+        type: string
+      quantity:
+        type: integer
+      status:
+        type: string
+      total_amount:
+        type: number
+      user_id:
+        type: string
+    type: object
   user.CreateUserRequest:
     properties:
       email:
@@ -203,6 +247,82 @@ definitions:
       username:
         description: User's chosen username
         example: john_doe
+        type: string
+    type: object
+  venue.CreateVenueRequest:
+    properties:
+      address:
+        minLength: 1
+        type: string
+      capacity:
+        minimum: 1
+        type: integer
+      description:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - address
+    - capacity
+    - name
+    type: object
+  venue.ErrorResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  venue.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  venue.UpdateVenueRequest:
+    properties:
+      address:
+        minLength: 1
+        type: string
+      capacity:
+        minimum: 1
+        type: integer
+      description:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - address
+    - capacity
+    - name
+    type: object
+  venue.VenueListResponse:
+    properties:
+      count:
+        type: integer
+      venues:
+        items:
+          $ref: '#/definitions/venue.VenueResponse'
+        type: array
+    type: object
+  venue.VenueResponse:
+    properties:
+      address:
+        type: string
+      capacity:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
         type: string
     type: object
 host: localhost:8080
@@ -496,6 +616,114 @@ paths:
       summary: Get my events
       tags:
       - events
+  /api/v1/orders:
+    post:
+      consumes:
+      - application/json
+      description: Create a new order (requires USER role)
+      parameters:
+      - description: Order data
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/order.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/order.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new order
+      tags:
+      - orders
+  /api/v1/orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get order details by ID (user can only see their own orders)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/order.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get order by ID
+      tags:
+      - orders
+  /api/v1/orders/my-orders:
+    get:
+      consumes:
+      - application/json
+      description: Get all orders for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/order.OrderListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/order.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get my orders
+      tags:
+      - orders
   /api/v1/users:
     post:
       consumes:
@@ -591,6 +819,187 @@ paths:
       summary: Get current user profile
       tags:
       - users
+  /api/v1/venues:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all venues
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/venue.VenueListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+      summary: Get all venues
+      tags:
+      - venues
+    post:
+      consumes:
+      - application/json
+      description: Create a new venue (requires ORGANIZER or ADMIN role)
+      parameters:
+      - description: Venue data
+        in: body
+        name: venue
+        required: true
+        schema:
+          $ref: '#/definitions/venue.CreateVenueRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/venue.VenueResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new venue
+      tags:
+      - venues
+  /api/v1/venues/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a venue (requires ADMIN role)
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/venue.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete venue
+      tags:
+      - venues
+    get:
+      consumes:
+      - application/json
+      description: Get venue details by ID
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/venue.VenueResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+      summary: Get venue by ID
+      tags:
+      - venues
+    put:
+      consumes:
+      - application/json
+      description: Update an existing venue (requires ORGANIZER or ADMIN role)
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Venue data
+        in: body
+        name: venue
+        required: true
+        schema:
+          $ref: '#/definitions/venue.UpdateVenueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/venue.VenueResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/venue.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update venue
+      tags:
+      - venues
 schemes:
 - http
 securityDefinitions:

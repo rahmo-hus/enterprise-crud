@@ -57,8 +57,12 @@ func (r *venueRepository) Update(ctx context.Context, v *venue.Venue) error {
 
 // Delete deletes a venue by its ID
 func (r *venueRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.db.WithContext(ctx).Delete(&venue.Venue{}, id).Error; err != nil {
-		return venue.NewVenueError(venue.ErrVenueDeletionFailed, err)
+	result := r.db.WithContext(ctx).Delete(&venue.Venue{}, id)
+	if result.Error != nil {
+		return venue.NewVenueError(venue.ErrVenueDeletionFailed, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return venue.NewVenueNotFoundError(id)
 	}
 	return nil
 }

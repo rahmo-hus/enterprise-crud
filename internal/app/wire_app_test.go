@@ -8,10 +8,14 @@ import (
 	"time"
 
 	"enterprise-crud/internal/config"
+	"enterprise-crud/internal/domain/event"
+	"enterprise-crud/internal/domain/order"
 	"enterprise-crud/internal/domain/user"
+	"enterprise-crud/internal/domain/venue"
 	"enterprise-crud/internal/infrastructure/auth"
 	httpHandlers "enterprise-crud/internal/presentation/http"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -36,6 +40,111 @@ func (m *MockUserService) AuthenticateUser(ctx context.Context, email, password 
 	return args.Get(0).(*user.User), args.Error(1)
 }
 
+// MockEventService is a mock implementation of event.Service interface
+type MockEventService struct {
+	mock.Mock
+}
+
+func (m *MockEventService) CreateEvent(ctx context.Context, event *event.Event) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockEventService) GetEventByID(ctx context.Context, id uuid.UUID) (*event.Event, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*event.Event), args.Error(1)
+}
+
+func (m *MockEventService) GetAllEvents(ctx context.Context) ([]*event.Event, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*event.Event), args.Error(1)
+}
+
+func (m *MockEventService) GetEventsByOrganizer(ctx context.Context, organizerID uuid.UUID) ([]*event.Event, error) {
+	args := m.Called(ctx, organizerID)
+	return args.Get(0).([]*event.Event), args.Error(1)
+}
+
+func (m *MockEventService) UpdateEvent(ctx context.Context, event *event.Event) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockEventService) CancelEvent(ctx context.Context, eventID uuid.UUID, organizerID uuid.UUID) error {
+	args := m.Called(ctx, eventID, organizerID)
+	return args.Error(0)
+}
+
+func (m *MockEventService) DeleteEvent(ctx context.Context, eventID uuid.UUID, organizerID uuid.UUID) error {
+	args := m.Called(ctx, eventID, organizerID)
+	return args.Error(0)
+}
+
+// MockOrderService is a mock implementation of order.Service interface
+type MockOrderService struct {
+	mock.Mock
+}
+
+func (m *MockOrderService) CreateOrder(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, quantity int) (*order.Order, error) {
+	args := m.Called(ctx, userID, eventID, quantity)
+	return args.Get(0).(*order.Order), args.Error(1)
+}
+
+func (m *MockOrderService) GetOrderByID(ctx context.Context, id uuid.UUID) (*order.Order, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*order.Order), args.Error(1)
+}
+
+func (m *MockOrderService) GetOrdersByUserID(ctx context.Context, userID uuid.UUID) ([]*order.Order, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).([]*order.Order), args.Error(1)
+}
+
+func (m *MockOrderService) GetOrdersByEventID(ctx context.Context, eventID uuid.UUID) ([]*order.Order, error) {
+	args := m.Called(ctx, eventID)
+	return args.Get(0).([]*order.Order), args.Error(1)
+}
+
+func (m *MockOrderService) UpdateOrderStatus(ctx context.Context, id uuid.UUID, status string) error {
+	args := m.Called(ctx, id, status)
+	return args.Error(0)
+}
+
+func (m *MockOrderService) DeleteOrder(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+// MockVenueService is a mock implementation of venue.Service interface
+type MockVenueService struct {
+	mock.Mock
+}
+
+func (m *MockVenueService) CreateVenue(ctx context.Context, venue *venue.Venue) error {
+	args := m.Called(ctx, venue)
+	return args.Error(0)
+}
+
+func (m *MockVenueService) GetVenueByID(ctx context.Context, id uuid.UUID) (*venue.Venue, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*venue.Venue), args.Error(1)
+}
+
+func (m *MockVenueService) GetAllVenues(ctx context.Context) ([]*venue.Venue, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*venue.Venue), args.Error(1)
+}
+
+func (m *MockVenueService) UpdateVenue(ctx context.Context, venue *venue.Venue) error {
+	args := m.Called(ctx, venue)
+	return args.Error(0)
+}
+
+func (m *MockVenueService) DeleteVenue(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 func setupTestWireApp() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
@@ -49,13 +158,22 @@ func setupTestWireApp() *gin.Engine {
 	}
 
 	mockUserService := new(MockUserService)
+	mockEventService := new(MockEventService)
+	mockOrderService := new(MockOrderService)
 	jwtService := auth.NewJWTService("test-secret-key", "test-issuer", time.Hour)
+	
 	userHandler := httpHandlers.NewUserHandler(mockUserService, jwtService)
+	eventHandler := httpHandlers.NewEventHandler(mockEventService, jwtService)
+	orderHandler := httpHandlers.NewOrderHandler(mockOrderService, jwtService)
+	
+	// Create mock venue service and handler
+	mockVenueService := new(MockVenueService)
+	venueHandler := httpHandlers.NewVenueHandler(mockVenueService, jwtService)
 
 	// Create a test app instance
-	app := NewWireApp(cfg, nil, userHandler)
+	app := NewWireApp(cfg, nil, userHandler, eventHandler, orderHandler, venueHandler)
 
-	return app.setupRouter()
+	return app.SetupRouter()
 }
 
 func TestWireApp_HealthCheck(t *testing.T) {
