@@ -1,19 +1,22 @@
 # Enterprise CRUD API
 
-A RESTful API for user management built with Go, Gin, GORM, and PostgreSQL.
+A comprehensive RESTful API for **event ticketing system** built with Go, Gin, GORM, and PostgreSQL.
 
 ## Features
 
-- User registration and retrieval
-- REST endpoints with proper HTTP status codes
-- Clean architecture with domain-driven design
-- Comprehensive test coverage
-- Database migrations
-- Password hashing with bcrypt
-- JSON validation
-- **Swagger/OpenAPI documentation**
-- Interactive API testing interface
-- Extensive inline documentation
+- **User Management**: Registration, authentication, and role-based access control
+- **Event Management**: Create, update, and manage events with venues
+- **Venue Management**: Full CRUD operations for venue administration
+- **Order Management**: Ticket ordering with transaction support
+- **JWT Authentication**: Secure API access with role-based permissions
+- **Database Transactions**: Atomic operations for ticket purchases
+- **Clean Architecture**: Domain-driven design with comprehensive layers
+- **Comprehensive Test Coverage**: 80+ unit and integration tests
+- **Database Migrations**: Version-controlled schema management
+- **Password Security**: bcrypt hashing with salt
+- **Input Validation**: JSON schema validation and business rules
+- **Swagger/OpenAPI Documentation**: Interactive API testing interface
+- **Role-Based Access Control**: USER, ORGANIZER, ADMIN roles
 
 ## Project Structure
 
@@ -24,14 +27,24 @@ enterprise-crud/
 ├── docs/                  # Swagger documentation files
 ├── internal/
 │   ├── domain/
-│   │   └── user/          # User domain logic and interfaces
+│   │   ├── user/          # User domain logic and interfaces
+│   │   ├── event/         # Event domain logic and interfaces
+│   │   ├── venue/         # Venue domain logic and interfaces
+│   │   ├── order/         # Order domain logic and interfaces
+│   │   ├── ticket/        # Ticket domain logic and interfaces
+│   │   └── role/          # Role domain logic and interfaces
 │   ├── dto/
-│   │   └── user/          # Data transfer objects
+│   │   ├── user/          # User data transfer objects
+│   │   ├── event/         # Event data transfer objects
+│   │   ├── venue/         # Venue data transfer objects
+│   │   └── order/         # Order data transfer objects
 │   ├── infrastructure/
-│   │   └── database/      # Database implementations
+│   │   ├── database/      # Database implementations
+│   │   └── auth/          # JWT authentication
 │   └── presentation/
 │       └── http/          # HTTP handlers
 ├── migrations/            # SQL migration files
+├── tests/                 # Integration tests
 ├── docker-compose.yml     # PostgreSQL database setup
 ├── .env                   # Environment variables
 └── main.go               # Application entry point
@@ -88,6 +101,9 @@ The Swagger UI provides:
 
 ## API Endpoints
 
+### 🔗 Complete API Documentation
+**Interactive Swagger UI**: [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html)
+
 ### Health Check
 ```
 GET /health
@@ -106,24 +122,6 @@ Content-Type: application/json
 }
 ```
 
-**Success Response (200):**
-```json
-{
-  "user": {
-    "id": "123e4567-e89b-12d3-a456-426614174000",
-    "email": "user@example.com",
-    "username": "testuser"
-  },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_at": 1735689600
-}
-```
-
-**Error Responses:**
-- `400` - Invalid request body or validation errors
-- `401` - Invalid email or password
-- `500` - Internal server error
-
 ### User Management
 
 #### Create User (Public)
@@ -138,57 +136,134 @@ Content-Type: application/json
 }
 ```
 
-**Success Response (201):**
-```json
-{
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "email": "user@example.com",
-  "username": "testuser"
-}
-```
-
-**Error Responses:**
-- `400` - Invalid request body or validation errors
-- `409` - User with email already exists
-- `500` - Internal server error
-
-#### Get User by Email (Public)
-```
-GET /api/v1/users/{email}
-```
-
-**Success Response (200):**
-```json
-{
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "email": "user@example.com",
-  "username": "testuser"
-}
-```
-
-**Error Responses:**
-- `400` - Invalid email parameter
-- `404` - User not found
-- `500` - Internal server error
-
 #### Get User Profile (Protected)
 ```
 GET /api/v1/users/profile
 Authorization: Bearer <JWT_TOKEN>
 ```
 
-**Success Response (200):**
-```json
+### Venue Management
+
+#### Create Venue (ORGANIZER/ADMIN)
+```
+POST /api/v1/venues
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
 {
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "email": "user@example.com",
-  "username": "testuser"
+  "name": "Main Conference Hall",
+  "address": "123 Main St, City",
+  "capacity": 500,
+  "description": "Large conference venue"
 }
 ```
 
-**Error Responses:**
-- `401` - Unauthorized - invalid or missing token
-- `500` - Internal server error
+#### Get All Venues (PUBLIC)
+```
+GET /api/v1/venues
+```
+
+#### Get Venue by ID (PUBLIC)
+```
+GET /api/v1/venues/{id}
+```
+
+#### Update Venue (ORGANIZER/ADMIN)
+```
+PUT /api/v1/venues/{id}
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### Delete Venue (ADMIN)
+```
+DELETE /api/v1/venues/{id}
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### Event Management
+
+#### Create Event (ORGANIZER/ADMIN)
+```
+POST /api/v1/events
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "venue_id": "123e4567-e89b-12d3-a456-426614174000",
+  "title": "Tech Conference 2024",
+  "description": "Annual technology conference",
+  "event_date": "2024-12-01T10:00:00Z",
+  "ticket_price": 99.99,
+  "total_tickets": 200
+}
+```
+
+#### Get All Events (PUBLIC)
+```
+GET /api/v1/events
+```
+
+#### Get Event by ID (PUBLIC)
+```
+GET /api/v1/events/{id}
+```
+
+#### Get My Events (ORGANIZER)
+```
+GET /api/v1/events/my-events
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### Update Event (ORGANIZER/ADMIN)
+```
+PUT /api/v1/events/{id}
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### Cancel Event (ORGANIZER/ADMIN)
+```
+PATCH /api/v1/events/{id}/cancel
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### Delete Event (ORGANIZER/ADMIN)
+```
+DELETE /api/v1/events/{id}
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### Order Management
+
+#### Create Order (USER)
+```
+POST /api/v1/orders
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "event_id": "123e4567-e89b-12d3-a456-426614174000",
+  "quantity": 2
+}
+```
+
+#### Get Order by ID (USER)
+```
+GET /api/v1/orders/{id}
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### Get My Orders (USER)
+```
+GET /api/v1/orders/my-orders
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### Role-Based Access Control
+
+- **PUBLIC**: Anyone can access
+- **USER**: Authenticated users (can create orders)
+- **ORGANIZER**: Can create/manage events and venues
+- **ADMIN**: Full access to all operations
 
 ## Testing
 
@@ -245,6 +320,63 @@ CREATE TABLE users (
 );
 ```
 
+**Venues Table:**
+```sql
+CREATE TABLE venues (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    address TEXT NOT NULL,
+    capacity INTEGER NOT NULL CHECK (capacity > 0),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Events Table:**
+```sql
+CREATE TABLE events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    venue_id UUID NOT NULL REFERENCES venues(id),
+    organizer_id UUID NOT NULL REFERENCES users(id),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    event_date TIMESTAMP NOT NULL,
+    ticket_price DECIMAL(10,2) NOT NULL,
+    total_tickets INTEGER NOT NULL,
+    available_tickets INTEGER NOT NULL,
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Orders Table:**
+```sql
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    event_id UUID NOT NULL REFERENCES events(id),
+    quantity INTEGER NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Tickets Table:**
+```sql
+CREATE TABLE tickets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES orders(id),
+    event_id UUID NOT NULL REFERENCES events(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    seat_info VARCHAR(50),
+    qr_code VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -267,15 +399,15 @@ JWT_ISSUER=enterprise-crud-api
 JWT_EXPIRATION_HOURS=720
 ```
 
-### Example API Calls with JWT
+### Example API Workflow
 
 #### 1. Create a User
 ```bash
 curl -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "user@example.com",
-    "username": "john_doe",
+    "email": "organizer@example.com",
+    "username": "event_organizer",
     "password": "password123"
   }'
 ```
@@ -285,29 +417,60 @@ curl -X POST http://localhost:8080/api/v1/users \
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "user@example.com",
+    "email": "organizer@example.com",
     "password": "password123"
   }'
 ```
 
-**Save the token from the response:**
-```json
-{
-  "user": {...},
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_at": 1735689600
-}
-```
-
-#### 3. Access Protected Endpoint
+#### 3. Create a Venue (ORGANIZER)
 ```bash
-# Replace <TOKEN> with the actual JWT token from login
-curl -X GET http://localhost:8080/api/v1/users/profile \
-  -H "Authorization: Bearer <TOKEN>"
+curl -X POST http://localhost:8080/api/v1/venues \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Tech Conference Center",
+    "address": "123 Innovation Drive",
+    "capacity": 500,
+    "description": "Modern conference facility"
+  }'
 ```
 
-#### 4. Test Token Expiration
-The JWT tokens are long-lived (30 days by default). They will automatically expire and require re-authentication.
+#### 4. Create an Event (ORGANIZER)
+```bash
+curl -X POST http://localhost:8080/api/v1/events \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "venue_id": "<VENUE_ID>",
+    "title": "Go Developer Conference",
+    "description": "Annual Go programming conference",
+    "event_date": "2024-12-01T10:00:00Z",
+    "ticket_price": 99.99,
+    "total_tickets": 200
+  }'
+```
+
+#### 5. Create an Order (USER)
+```bash
+curl -X POST http://localhost:8080/api/v1/orders \
+  -H "Authorization: Bearer <USER_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_id": "<EVENT_ID>",
+    "quantity": 2
+  }'
+```
+
+#### 6. View Browse Events (PUBLIC)
+```bash
+curl -X GET http://localhost:8080/api/v1/events
+```
+
+#### 7. View My Orders (USER)
+```bash
+curl -X GET http://localhost:8080/api/v1/orders/my-orders \
+  -H "Authorization: Bearer <USER_TOKEN>"
+```
 
 ### Docker Compose Configuration
 
@@ -333,23 +496,37 @@ The codebase follows Go best practices with:
 
 1. **Domain Layer** (`internal/domain/`):
    - Business logic and interfaces
-   - Domain entities and services
+   - Domain entities (User, Event, Venue, Order, Ticket)
    - Repository interfaces
+   - Custom error types
 
 2. **Infrastructure Layer** (`internal/infrastructure/`):
-   - Database implementations
-   - External service integrations
+   - Database implementations (GORM)
+   - JWT authentication service
    - Repository implementations
+   - External service integrations
 
 3. **Presentation Layer** (`internal/presentation/`):
-   - HTTP handlers
+   - HTTP handlers for all entities
    - Request/response mapping
    - Route registration
+   - Middleware integration
 
 4. **DTO Layer** (`internal/dto/`):
    - Data transfer objects
    - Request/response structures
-   - Validation rules
+   - JSON validation rules
+   - Swagger annotations
+
+### Event Ticketing System Flow
+
+1. **Venue Creation**: ORGANIZER creates venues
+2. **Event Creation**: ORGANIZER creates events at venues
+3. **Event Browsing**: PUBLIC can view events and venues
+4. **User Registration**: Anyone can register as USER
+5. **Order Creation**: USER purchases tickets (atomic transaction)
+6. **Ticket Generation**: System generates tickets for completed orders
+7. **Order Management**: USER can view their orders
 
 ### Adding New Features
 
@@ -358,7 +535,8 @@ The codebase follows Go best practices with:
 3. Implement infrastructure in `internal/infrastructure/`
 4. Add HTTP handlers in `internal/presentation/`
 5. Write comprehensive tests for all layers
-6. Update documentation
+6. Update Swagger documentation
+7. Add database migrations if needed
 
 ## Troubleshooting
 
