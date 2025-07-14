@@ -38,14 +38,6 @@ func main() {
 		databaseURL = "postgres://postgres:postgres@localhost:5433/enterprise_crud?sslmode=disable"
 	}
 
-	// Set up the path to our migration files
-	// "file://" is like saying "look in the file system" (not a website)
-	migrationsPath := "file://migrations"
-	// If user provided a custom path as second argument, use that instead
-	if len(os.Args) > 2 {
-		migrationsPath = fmt.Sprintf("file://%s", os.Args[2])
-	}
-
 	// Get the current working directory (like System.getProperty("user.dir") in Java)
 	// In Go, functions can return multiple values! Here we get the directory AND an error
 	wd, err := os.Getwd()
@@ -54,9 +46,16 @@ func main() {
 		log.Fatal(err) // This is like throwing a RuntimeException in Java
 	}
 
-	// Build the full path to our migrations folder
-	// filepath.Join is like Paths.get() in Java - it joins paths safely
-	migrationsPath = fmt.Sprintf("file://%s", filepath.Join(wd, "migrations"))
+	// Set up the path to our migration files
+	// If user provided a custom path as second argument, use that instead
+	var migrationsPath string
+	if len(os.Args) > 2 {
+		migrationsPath = fmt.Sprintf("file://%s", os.Args[2])
+	} else {
+		// Build the full path to our migrations folder
+		// filepath.Join is like Paths.get() in Java - it joins paths safely
+		migrationsPath = fmt.Sprintf("file://%s", filepath.Join(wd, "migrations"))
+	}
 
 	// Create a new migration instance - like creating a new object in Java
 	// Again, Go functions can return multiple values (the migrator AND an error)

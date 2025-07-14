@@ -21,8 +21,9 @@ import (
 	"enterprise-crud/internal/infrastructure/auth"
 	"enterprise-crud/internal/infrastructure/database"
 	httpHandlers "enterprise-crud/internal/presentation/http"
+
 	"github.com/gin-gonic/gin"
-	"github.com/swaggo/files"
+	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 

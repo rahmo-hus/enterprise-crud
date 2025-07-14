@@ -513,8 +513,8 @@ func (h *EventHandler) RegisterRoutes(router *gin.RouterGroup) {
 	eventRoutes := router.Group("/events")
 	{
 		// Public routes
-		eventRoutes.GET("", h.GetAllEvents)        // Get all events
-		eventRoutes.GET("/:id", h.GetEvent)        // Get event by ID
+		eventRoutes.GET("", h.GetAllEvents) // Get all events
+		eventRoutes.GET("/:id", h.GetEvent) // Get event by ID
 
 		// Organizer routes (require ORGANIZER or ADMIN role)
 		eventRoutes.POST("",

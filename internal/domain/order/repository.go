@@ -15,7 +15,7 @@ type Repository interface {
 	Update(ctx context.Context, order *Order) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetByEventID(ctx context.Context, eventID uuid.UUID) ([]*Order, error)
-	
+
 	// Transaction methods
 	CreateWithTx(ctx context.Context, tx *gorm.DB, order *Order) error
 	GetEventWithTx(ctx context.Context, tx *gorm.DB, eventID uuid.UUID) (*EventInfo, error)

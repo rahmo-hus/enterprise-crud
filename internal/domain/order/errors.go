@@ -26,14 +26,14 @@ func (e *OrderError) Unwrap() error {
 
 // Error constants
 const (
-	OrderNotFoundErrorCode     = "ORDER_NOT_FOUND"
-	EventNotFoundErrorCode     = "EVENT_NOT_FOUND"
+	OrderNotFoundErrorCode       = "ORDER_NOT_FOUND"
+	EventNotFoundErrorCode       = "EVENT_NOT_FOUND"
 	InsufficientTicketsErrorCode = "INSUFFICIENT_TICKETS"
-	InvalidQuantityErrorCode   = "INVALID_QUANTITY"
-	EventNotActiveErrorCode    = "EVENT_NOT_ACTIVE"
-	ValidationErrorCode        = "VALIDATION_ERROR"
-	OrderCreationErrorCode     = "ORDER_CREATION_ERROR"
-	UnauthorizedErrorCode      = "UNAUTHORIZED"
+	InvalidQuantityErrorCode     = "INVALID_QUANTITY"
+	EventNotActiveErrorCode      = "EVENT_NOT_ACTIVE"
+	ValidationErrorCode          = "VALIDATION_ERROR"
+	OrderCreationErrorCode       = "ORDER_CREATION_ERROR"
+	UnauthorizedErrorCode        = "UNAUTHORIZED"
 )
 
 // NewOrderNotFoundError creates a new order not found error
@@ -93,14 +93,6 @@ func NewOrderCreationError(err error) *OrderError {
 	}
 }
 
-// NewUnauthorizedError creates a new unauthorized error
-func NewUnauthorizedError(message string) *OrderError {
-	return &OrderError{
-		Code:    UnauthorizedErrorCode,
-		Message: message,
-	}
-}
-
 // Error type checking functions
 func IsOrderNotFoundError(err error) bool {
 	if orderErr, ok := err.(*OrderError); ok {
@@ -147,13 +139,6 @@ func IsValidationError(err error) bool {
 func IsOrderCreationError(err error) bool {
 	if orderErr, ok := err.(*OrderError); ok {
 		return orderErr.Code == OrderCreationErrorCode
-	}
-	return false
-}
-
-func IsUnauthorizedError(err error) bool {
-	if orderErr, ok := err.(*OrderError); ok {
-		return orderErr.Code == UnauthorizedErrorCode
 	}
 	return false
 }

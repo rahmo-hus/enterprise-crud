@@ -51,8 +51,8 @@ func (m *MockDB) Delete(value interface{}, conds ...interface{}) *gorm.DB {
 // MockGormDB is a mock GORM DB result
 type MockGormDB struct {
 	mock.Mock
-	ErrorToReturn    error
-	RowsAffectedVal  int64
+	ErrorToReturn   error
+	RowsAffectedVal int64
 }
 
 func (m *MockGormDB) Error() error {
@@ -73,10 +73,10 @@ func TestVenueRepository_Create_Success(t *testing.T) {
 	}
 
 	_ = &MockGormDB{ErrorToReturn: nil}
-	
+
 	// Create a real GORM DB instance for mocking
 	db := &gorm.DB{}
-	
+
 	// Mock the Create method to return no error
 	repo := &venueRepository{db: db}
 
@@ -90,7 +90,7 @@ func TestVenueRepository_Create_Error(t *testing.T) {
 	// Test that venue repository properly handles creation errors
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	// Verify repository structure
 	assert.NotNil(t, repo)
 	assert.Equal(t, db, repo.db)
@@ -100,7 +100,7 @@ func TestVenueRepository_GetByID_Success(t *testing.T) {
 	// Test successful venue retrieval by ID
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 	assert.Equal(t, db, repo.db)
 }
@@ -109,7 +109,7 @@ func TestVenueRepository_GetByID_NotFound(t *testing.T) {
 	// Test venue not found scenario
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 }
 
@@ -117,7 +117,7 @@ func TestVenueRepository_GetAll_Success(t *testing.T) {
 	// Test successful retrieval of all venues
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 }
 
@@ -125,7 +125,7 @@ func TestVenueRepository_GetAll_Empty(t *testing.T) {
 	// Test empty venue list
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 }
 
@@ -133,7 +133,7 @@ func TestVenueRepository_Update_Success(t *testing.T) {
 	// Test successful venue update
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 }
 
@@ -141,7 +141,7 @@ func TestVenueRepository_Update_Error(t *testing.T) {
 	// Test venue update error handling
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 }
 
@@ -149,7 +149,7 @@ func TestVenueRepository_Delete_Success(t *testing.T) {
 	// Test successful venue deletion
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 }
 
@@ -157,7 +157,7 @@ func TestVenueRepository_Delete_NotFound(t *testing.T) {
 	// Test deletion of non-existent venue
 	db := &gorm.DB{}
 	repo := &venueRepository{db: db}
-	
+
 	assert.NotNil(t, repo)
 }
 
@@ -165,9 +165,9 @@ func TestNewVenueRepository(t *testing.T) {
 	// Test venue repository constructor
 	db := &gorm.DB{}
 	repo := NewVenueRepository(db)
-	
+
 	require.NotNil(t, repo)
-	
+
 	// Verify it implements the venue.Repository interface
 	var _ venue.Repository = repo
 }

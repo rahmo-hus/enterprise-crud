@@ -14,6 +14,7 @@ import (
 	"enterprise-crud/internal/domain/venue"
 	"enterprise-crud/internal/infrastructure/auth"
 	httpHandlers "enterprise-crud/internal/presentation/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -161,11 +162,11 @@ func setupTestWireApp() *gin.Engine {
 	mockEventService := new(MockEventService)
 	mockOrderService := new(MockOrderService)
 	jwtService := auth.NewJWTService("test-secret-key", "test-issuer", time.Hour)
-	
+
 	userHandler := httpHandlers.NewUserHandler(mockUserService, jwtService)
 	eventHandler := httpHandlers.NewEventHandler(mockEventService, jwtService)
 	orderHandler := httpHandlers.NewOrderHandler(mockOrderService, jwtService)
-	
+
 	// Create mock venue service and handler
 	mockVenueService := new(MockVenueService)
 	venueHandler := httpHandlers.NewVenueHandler(mockVenueService, jwtService)

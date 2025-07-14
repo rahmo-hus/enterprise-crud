@@ -74,15 +74,15 @@ func TestOrderService_CreateOrder_InvalidQuantity(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil) // DB not used for validation
-	
+
 	ctx := context.Background()
 	userID := uuid.New()
 	eventID := uuid.New()
 	quantity := 0
-	
+
 	// Act
 	createdOrder, err := service.CreateOrder(ctx, userID, eventID, quantity)
-	
+
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, createdOrder)
@@ -94,10 +94,10 @@ func TestOrderService_GetOrderByID_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil)
-	
+
 	ctx := context.Background()
 	orderID := uuid.New()
-	
+
 	expectedOrder := &order.Order{
 		ID:          orderID,
 		UserID:      uuid.New(),
@@ -107,19 +107,19 @@ func TestOrderService_GetOrderByID_Success(t *testing.T) {
 		Status:      order.StatusPending,
 		CreatedAt:   time.Now(),
 	}
-	
+
 	mockRepo.On("GetByID", ctx, orderID).Return(expectedOrder, nil)
-	
+
 	// Act
 	foundOrder, err := service.GetOrderByID(ctx, orderID)
-	
+
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, foundOrder)
 	assert.Equal(t, expectedOrder.ID, foundOrder.ID)
 	assert.Equal(t, expectedOrder.UserID, foundOrder.UserID)
 	assert.Equal(t, expectedOrder.EventID, foundOrder.EventID)
-	
+
 	mockRepo.AssertExpectations(t)
 }
 
@@ -128,20 +128,20 @@ func TestOrderService_GetOrderByID_NotFound(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil)
-	
+
 	ctx := context.Background()
 	orderID := uuid.New()
-	
+
 	mockRepo.On("GetByID", ctx, orderID).Return(nil, order.NewOrderNotFoundError(orderID))
-	
+
 	// Act
 	foundOrder, err := service.GetOrderByID(ctx, orderID)
-	
+
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, foundOrder)
 	assert.True(t, order.IsOrderNotFoundError(err))
-	
+
 	mockRepo.AssertExpectations(t)
 }
 
@@ -150,10 +150,10 @@ func TestOrderService_GetOrdersByUserID_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil)
-	
+
 	ctx := context.Background()
 	userID := uuid.New()
-	
+
 	expectedOrders := []*order.Order{
 		{
 			ID:          uuid.New(),
@@ -174,19 +174,19 @@ func TestOrderService_GetOrdersByUserID_Success(t *testing.T) {
 			CreatedAt:   time.Now(),
 		},
 	}
-	
+
 	mockRepo.On("GetByUserID", ctx, userID).Return(expectedOrders, nil)
-	
+
 	// Act
 	foundOrders, err := service.GetOrdersByUserID(ctx, userID)
-	
+
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, foundOrders)
 	assert.Len(t, foundOrders, 2)
 	assert.Equal(t, expectedOrders[0].ID, foundOrders[0].ID)
 	assert.Equal(t, expectedOrders[1].ID, foundOrders[1].ID)
-	
+
 	mockRepo.AssertExpectations(t)
 }
 
@@ -195,11 +195,11 @@ func TestOrderService_UpdateOrderStatus_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil)
-	
+
 	ctx := context.Background()
 	orderID := uuid.New()
 	newStatus := order.StatusCompleted
-	
+
 	existingOrder := &order.Order{
 		ID:          orderID,
 		UserID:      uuid.New(),
@@ -209,16 +209,16 @@ func TestOrderService_UpdateOrderStatus_Success(t *testing.T) {
 		Status:      order.StatusPending,
 		CreatedAt:   time.Now(),
 	}
-	
+
 	mockRepo.On("GetByID", ctx, orderID).Return(existingOrder, nil)
 	mockRepo.On("Update", ctx, mock.AnythingOfType("*order.Order")).Return(nil)
-	
+
 	// Act
 	err := service.UpdateOrderStatus(ctx, orderID, newStatus)
-	
+
 	// Assert
 	assert.NoError(t, err)
-	
+
 	mockRepo.AssertExpectations(t)
 }
 
@@ -227,14 +227,14 @@ func TestOrderService_UpdateOrderStatus_InvalidStatus(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil)
-	
+
 	ctx := context.Background()
 	orderID := uuid.New()
 	invalidStatus := "INVALID_STATUS"
-	
+
 	// Act
 	err := service.UpdateOrderStatus(ctx, orderID, invalidStatus)
-	
+
 	// Assert
 	assert.Error(t, err)
 	assert.True(t, order.IsValidationError(err))
@@ -245,10 +245,10 @@ func TestOrderService_DeleteOrder_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil)
-	
+
 	ctx := context.Background()
 	orderID := uuid.New()
-	
+
 	existingOrder := &order.Order{
 		ID:          orderID,
 		UserID:      uuid.New(),
@@ -258,16 +258,16 @@ func TestOrderService_DeleteOrder_Success(t *testing.T) {
 		Status:      order.StatusPending,
 		CreatedAt:   time.Now(),
 	}
-	
+
 	mockRepo.On("GetByID", ctx, orderID).Return(existingOrder, nil)
 	mockRepo.On("Delete", ctx, orderID).Return(nil)
-	
+
 	// Act
 	err := service.DeleteOrder(ctx, orderID)
-	
+
 	// Assert
 	assert.NoError(t, err)
-	
+
 	mockRepo.AssertExpectations(t)
 }
 
@@ -276,19 +276,19 @@ func TestOrderService_DeleteOrder_NotFound(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockOrderRepository)
 	service := order.NewOrderService(mockRepo, nil)
-	
+
 	ctx := context.Background()
 	orderID := uuid.New()
-	
+
 	mockRepo.On("GetByID", ctx, orderID).Return(nil, order.NewOrderNotFoundError(orderID))
-	
+
 	// Act
 	err := service.DeleteOrder(ctx, orderID)
-	
+
 	// Assert
 	assert.Error(t, err)
 	assert.True(t, order.IsOrderNotFoundError(err))
-	
+
 	mockRepo.AssertExpectations(t)
 }
 

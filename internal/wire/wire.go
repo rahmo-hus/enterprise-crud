@@ -9,6 +9,7 @@ import (
 	"enterprise-crud/internal/domain/user"
 	"enterprise-crud/internal/infrastructure/database"
 	"enterprise-crud/internal/presentation/http"
+
 	"github.com/google/wire"
 )
 

@@ -1,3 +1,6 @@
+// Package database provides database connection and repository implementations.
+// It handles PostgreSQL database connectivity using GORM and implements repository patterns
+// for all domain entities including users, events, venues, orders, and tickets.
 package database
 
 import (

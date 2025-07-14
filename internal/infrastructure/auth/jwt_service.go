@@ -1,3 +1,6 @@
+// Package auth provides authentication and authorization services.
+// It includes JWT token generation, validation, and role-based access control
+// middleware for securing API endpoints.
 package auth
 
 import (

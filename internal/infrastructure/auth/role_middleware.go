@@ -104,9 +104,3 @@ func HasRole(c *gin.Context, roleName string) bool {
 
 	return slices.Contains(roles, roleName)
 }
-
-// IsAdmin checks if the current user is an administrator
-// This helper function can be used in handlers for admin-specific logic
-func IsAdmin(c *gin.Context) bool {
-	return HasRole(c, "ADMIN")
-}

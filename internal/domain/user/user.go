@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"enterprise-crud/internal/domain/role"
+
 	"github.com/google/uuid"
 )
 
@@ -11,10 +12,10 @@ import (
 // This is the central business object similar to a JPA Entity in Spring Boot
 // Contains all user-related data and business rules
 type User struct {
-	ID       uuid.UUID `json:"id" gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`  // Unique identifier, auto-generated UUID primary key
-	Email    string    `json:"email" gorm:"unique; not null"`    // User email address, must be unique across system
-	Username string    `json:"username" gorm:"unique; not null"` // User chosen username, must be unique across system
-	Password string    `json:"-" gorm:"not null"`                // Encrypted password, excluded from JSON serialization for security
+	ID       uuid.UUID `json:"id" gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"` // Unique identifier, auto-generated UUID primary key
+	Email    string    `json:"email" gorm:"unique; not null"`                             // User email address, must be unique across system
+	Username string    `json:"username" gorm:"unique; not null"`                          // User chosen username, must be unique across system
+	Password string    `json:"-" gorm:"not null"`                                         // Encrypted password, excluded from JSON serialization for security
 
 	// Roles defines what this user can do in the system
 	// Many-to-many relationship: one user can have multiple roles, one role can belong to multiple users

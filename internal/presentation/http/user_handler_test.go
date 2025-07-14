@@ -13,6 +13,7 @@ import (
 	"enterprise-crud/internal/domain/user"
 	userDTO "enterprise-crud/internal/dto/user"
 	"enterprise-crud/internal/infrastructure/auth"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

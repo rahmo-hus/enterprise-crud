@@ -1,3 +1,6 @@
+// Package http provides HTTP handlers for the REST API endpoints.
+// It implements the presentation layer of the clean architecture, handling HTTP requests
+// and responses for all domain entities including users, events, venues, and orders.
 package http
 
 import (
@@ -8,6 +11,7 @@ import (
 	"enterprise-crud/internal/domain/user"
 	userDTO "enterprise-crud/internal/dto/user"
 	"enterprise-crud/internal/infrastructure/auth"
+
 	"github.com/gin-gonic/gin"
 )
 

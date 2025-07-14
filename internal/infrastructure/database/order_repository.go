@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"enterprise-crud/internal/domain/order"
 	"enterprise-crud/internal/domain/event"
+	"enterprise-crud/internal/domain/order"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -96,7 +96,7 @@ func (r *OrderRepository) GetEventWithTx(ctx context.Context, tx *gorm.DB, event
 		}
 		return nil, err
 	}
-	
+
 	return &order.EventInfo{
 		ID:               eventEntity.ID,
 		Title:            eventEntity.Title,
@@ -112,14 +112,14 @@ func (r *OrderRepository) UpdateEventTicketsWithTx(ctx context.Context, tx *gorm
 	result := tx.WithContext(ctx).Model(&event.Event{}).
 		Where("id = ?", eventID).
 		Update("available_tickets", newAvailableTickets)
-	
+
 	if result.Error != nil {
 		return result.Error
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return order.NewEventNotFoundError(eventID)
 	}
-	
+
 	return nil
 }

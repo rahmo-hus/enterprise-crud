@@ -12,6 +12,7 @@ import (
 	"enterprise-crud/internal/domain/event"
 	eventDto "enterprise-crud/internal/dto/event"
 	"enterprise-crud/internal/infrastructure/auth"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -104,7 +105,7 @@ func TestEventHandler_CreateEvent(t *testing.T) {
 			requestBody: map[string]interface{}{
 				"title": "", // Invalid: empty title
 			},
-			setupMocks:     func(mockService *MockEventService) {},
+			setupMocks: func(mockService *MockEventService) {},
 			setupAuth: func(c *gin.Context) {
 				c.Set("user", &auth.JWTClaims{
 					UserID: uuid.New(),
@@ -186,30 +187,30 @@ func TestEventHandler_CreateEvent(t *testing.T) {
 			body, _ := json.Marshal(tt.requestBody)
 			req := httptest.NewRequest(http.MethodPost, "/events", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
-			
+
 			// Create response recorder
 			w := httptest.NewRecorder()
-			
+
 			// Create gin context
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
-			
+
 			// Setup auth
 			tt.setupAuth(c)
-			
+
 			// Call handler
 			handler.CreateEvent(c)
-			
+
 			// Verify response
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			if tt.expectedError != "" {
 				var errorResponse eventDto.ErrorResponse
 				err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedError, errorResponse.Error)
 			}
-			
+
 			mockService.AssertExpectations(t)
 		})
 	}
@@ -265,28 +266,28 @@ func TestEventHandler_GetEvent(t *testing.T) {
 
 			// Create request
 			req := httptest.NewRequest(http.MethodGet, "/events/"+tt.eventID, nil)
-			
+
 			// Create response recorder
 			w := httptest.NewRecorder()
-			
+
 			// Create gin context
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
 			c.Params = gin.Params{gin.Param{Key: "id", Value: tt.eventID}}
-			
+
 			// Call handler
 			handler.GetEvent(c)
-			
+
 			// Verify response
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			if tt.expectedError != "" {
 				var errorResponse eventDto.ErrorResponse
 				err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedError, errorResponse.Error)
 			}
-			
+
 			mockService.AssertExpectations(t)
 		})
 	}
@@ -339,20 +340,20 @@ func TestEventHandler_GetAllEvents(t *testing.T) {
 
 			// Create request
 			req := httptest.NewRequest(http.MethodGet, "/events", nil)
-			
+
 			// Create response recorder
 			w := httptest.NewRecorder()
-			
+
 			// Create gin context
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
-			
+
 			// Call handler
 			handler.GetAllEvents(c)
-			
+
 			// Verify response
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			if tt.expectedStatus == http.StatusOK {
 				var response eventDto.EventListResponse
 				err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -360,7 +361,7 @@ func TestEventHandler_GetAllEvents(t *testing.T) {
 				assert.Equal(t, tt.expectedCount, response.Count)
 				assert.Len(t, response.Events, tt.expectedCount)
 			}
-			
+
 			mockService.AssertExpectations(t)
 		})
 	}
@@ -450,31 +451,31 @@ func TestEventHandler_CancelEvent(t *testing.T) {
 
 			// Create request
 			req := httptest.NewRequest(http.MethodPatch, "/events/"+tt.eventID+"/cancel", nil)
-			
+
 			// Create response recorder
 			w := httptest.NewRecorder()
-			
+
 			// Create gin context
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
 			c.Params = gin.Params{gin.Param{Key: "id", Value: tt.eventID}}
-			
+
 			// Setup auth
 			tt.setupAuth(c)
-			
+
 			// Call handler
 			handler.CancelEvent(c)
-			
+
 			// Verify response
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			if tt.expectedError != "" {
 				var errorResponse eventDto.ErrorResponse
 				err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedError, errorResponse.Error)
 			}
-			
+
 			mockService.AssertExpectations(t)
 		})
 	}
@@ -549,31 +550,31 @@ func TestEventHandler_DeleteEvent(t *testing.T) {
 
 			// Create request
 			req := httptest.NewRequest(http.MethodDelete, "/events/"+tt.eventID, nil)
-			
+
 			// Create response recorder
 			w := httptest.NewRecorder()
-			
+
 			// Create gin context
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
 			c.Params = gin.Params{gin.Param{Key: "id", Value: tt.eventID}}
-			
+
 			// Setup auth
 			tt.setupAuth(c)
-			
+
 			// Call handler
 			handler.DeleteEvent(c)
-			
+
 			// Verify response
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			if tt.expectedError != "" {
 				var errorResponse eventDto.ErrorResponse
 				err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedError, errorResponse.Error)
 			}
-			
+
 			mockService.AssertExpectations(t)
 		})
 	}
@@ -583,7 +584,7 @@ func TestEventHandler_NewEventHandler(t *testing.T) {
 	mockService := new(MockEventService)
 	jwtService := auth.NewJWTService("test-secret", "test-issuer", time.Hour)
 	handler := NewEventHandler(mockService, jwtService)
-	
+
 	assert.NotNil(t, handler)
 	assert.Equal(t, mockService, handler.eventService)
 	assert.Equal(t, jwtService, handler.jwtService)

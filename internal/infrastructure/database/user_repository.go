@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"enterprise-crud/internal/domain/user"
+
 	"gorm.io/gorm"
 )
 

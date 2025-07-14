@@ -281,8 +281,8 @@ func (h *VenueHandler) RegisterRoutes(router *gin.RouterGroup) {
 	venueRoutes := router.Group("/venues")
 	{
 		// Public routes
-		venueRoutes.GET("", h.GetAllVenues)      // Get all venues
-		venueRoutes.GET("/:id", h.GetVenue)      // Get venue by ID
+		venueRoutes.GET("", h.GetAllVenues) // Get all venues
+		venueRoutes.GET("/:id", h.GetVenue) // Get venue by ID
 
 		// Organizer routes (require ORGANIZER or ADMIN role)
 		venueRoutes.POST("",

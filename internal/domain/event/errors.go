@@ -95,21 +95,6 @@ func NewUnauthorizedAccessError(action string) *EventError {
 	}
 }
 
-// IsEventError checks if an error is an EventError
-func IsEventError(err error) bool {
-	var eventErr *EventError
-	return errors.As(err, &eventErr)
-}
-
-// GetEventErrorCode extracts the error code from an EventError
-func GetEventErrorCode(err error) string {
-	var eventErr *EventError
-	if errors.As(err, &eventErr) {
-		return eventErr.Code
-	}
-	return ""
-}
-
 // IsEventNotFoundError checks if an error is a "not found" error
 func IsEventNotFoundError(err error) bool {
 	var eventErr *EventError
@@ -126,6 +111,15 @@ func IsVenueNotFoundError(err error) bool {
 func IsUnauthorizedError(err error) bool {
 	var eventErr *EventError
 	return errors.As(err, &eventErr) && eventErr.Code == "UNAUTHORIZED_ACCESS"
+}
+
+// GetEventErrorCode extracts the error code from an EventError
+func GetEventErrorCode(err error) string {
+	var eventErr *EventError
+	if errors.As(err, &eventErr) {
+		return eventErr.Code
+	}
+	return ""
 }
 
 // IsValidationError checks if an error is a validation error

@@ -81,7 +81,7 @@ func (s *VenueService) validateVenue(venue *Venue) error {
 	if venue.Capacity <= 0 {
 		return ErrInvalidVenueCapacity
 	}
-	
+
 	// Add more validation rules as needed
 	return nil
 }

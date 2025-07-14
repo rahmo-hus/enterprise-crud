@@ -1,7 +1,6 @@
 package user
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -49,19 +48,4 @@ func NewUserExistsError(email string) *UserError {
 		Code:    "USER_EXISTS",
 		Message: fmt.Sprintf("user with email %s already exists", email),
 	}
-}
-
-// IsUserError checks if an error is a UserError
-func IsUserError(err error) bool {
-	var userErr *UserError
-	return errors.As(err, &userErr)
-}
-
-// GetUserErrorCode extracts the error code from a UserError
-func GetUserErrorCode(err error) string {
-	var userErr *UserError
-	if errors.As(err, &userErr) {
-		return userErr.Code
-	}
-	return ""
 }
