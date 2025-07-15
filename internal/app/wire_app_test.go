@@ -172,7 +172,7 @@ func setupTestWireApp() *gin.Engine {
 	venueHandler := httpHandlers.NewVenueHandler(mockVenueService, jwtService)
 
 	// Create a test app instance
-	app := NewWireApp(cfg, nil, userHandler, eventHandler, orderHandler, venueHandler)
+	app := NewWireApp(cfg, nil, nil, userHandler, eventHandler, orderHandler, venueHandler)
 
 	return app.SetupRouter()
 }

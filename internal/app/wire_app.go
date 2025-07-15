@@ -19,6 +19,7 @@ import (
 	"enterprise-crud/internal/domain/user"
 	"enterprise-crud/internal/domain/venue"
 	"enterprise-crud/internal/infrastructure/auth"
+	"enterprise-crud/internal/infrastructure/cache"
 	"enterprise-crud/internal/infrastructure/database"
 	httpHandlers "enterprise-crud/internal/presentation/http"
 
@@ -32,6 +33,7 @@ type WireApp struct {
 	config       *config.Config
 	server       *http.Server
 	dbConn       *database.Connection
+	redisClient  *cache.RedisClient
 	userHandler  *httpHandlers.UserHandler
 	eventHandler *httpHandlers.EventHandler
 	orderHandler *httpHandlers.OrderHandler
@@ -42,6 +44,7 @@ type WireApp struct {
 func NewWireApp(
 	cfg *config.Config,
 	dbConn *database.Connection,
+	redisClient *cache.RedisClient,
 	userHandler *httpHandlers.UserHandler,
 	eventHandler *httpHandlers.EventHandler,
 	orderHandler *httpHandlers.OrderHandler,
@@ -50,6 +53,7 @@ func NewWireApp(
 	return &WireApp{
 		config:       cfg,
 		dbConn:       dbConn,
+		redisClient:  redisClient,
 		userHandler:  userHandler,
 		eventHandler: eventHandler,
 		orderHandler: orderHandler,
@@ -155,6 +159,11 @@ func (a *WireApp) waitForShutdown() error {
 		a.dbConn.Close()
 	}
 
+	// Close Redis connection
+	if a.redisClient != nil {
+		a.redisClient.Close()
+	}
+
 	log.Println("Server exited")
 	return nil
 }
@@ -163,8 +172,10 @@ func (a *WireApp) waitForShutdown() error {
 type Dependencies struct {
 	Config       *config.Config
 	DBConn       *database.Connection
+	RedisClient  *cache.RedisClient
 	UserRepo     user.Repository
 	RoleRepo     role.Repository
+	EventRepo    event.Repository // Now can be cached or direct
 	UserService  user.Service
 	EventService event.Service
 	OrderService order.Service
@@ -184,11 +195,33 @@ func NewDependencies(cfg *config.Config) (*Dependencies, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Redis connection
+	redisClient, err := cache.NewRedisClient(&cfg.Redis)
+	if err != nil {
+		// Redis is optional - log error but continue without caching
+		log.Printf("Warning: Failed to connect to Redis: %v. Running without cache.", err)
+		redisClient = nil
+	}
+
 	// Repositories
 	userRepo := database.NewUserRepository(dbConn.DB)
 	roleRepo := database.NewRoleRepository(dbConn.DB)
 	venueRepo := database.NewVenueRepository(dbConn.DB)
-	eventRepo := database.NewEventRepository(dbConn.DB)
+
+	// Event repository with optional caching
+	var eventRepo event.Repository
+	baseEventRepo := database.NewEventRepository(dbConn.DB)
+	if redisClient != nil {
+		// Use cached repository
+		eventCache := cache.NewEventCacheService(redisClient)
+		eventRepo = cache.NewCachedEventRepository(baseEventRepo, eventCache)
+		log.Println("Event caching enabled")
+	} else {
+		// Use direct database repository
+		eventRepo = baseEventRepo
+		log.Println("Event caching disabled")
+	}
+
 	orderRepo := database.NewOrderRepository(dbConn.DB)
 
 	// Services
@@ -226,8 +259,10 @@ func NewDependencies(cfg *config.Config) (*Dependencies, error) {
 	return &Dependencies{
 		Config:       cfg,
 		DBConn:       dbConn,
+		RedisClient:  redisClient,
 		UserRepo:     userRepo,
 		RoleRepo:     roleRepo,
+		EventRepo:    eventRepo,
 		UserService:  userService,
 		EventService: eventService,
 		OrderService: orderService,

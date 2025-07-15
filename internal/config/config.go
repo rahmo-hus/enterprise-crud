@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`   // HTTP server configuration settings
 	Database DatabaseConfig `mapstructure:"database"` // Database connection and pool settings
+	Redis    RedisConfig    `mapstructure:"redis"`    // Redis cache configuration settings
 	App      AppConfig      `mapstructure:"app"`      // Application metadata and general settings
 }
 
@@ -33,6 +34,19 @@ type DatabaseConfig struct {
 	MaxOpenConns    int           `mapstructure:"max_open_conns"`    // Maximum number of open connections (default: 25)
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`    // Maximum number of idle connections (default: 25)
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"` // Maximum connection lifetime (default: 5m)
+}
+
+// RedisConfig manages Redis connection and caching settings
+// These settings control cache behavior and Redis connection parameters
+// Similar to Spring Boot's spring.redis.* properties
+type RedisConfig struct {
+	Host         string        `mapstructure:"host"`           // Redis server host (default: "localhost")
+	Port         string        `mapstructure:"port"`           // Redis server port (default: "6379")
+	Password     string        `mapstructure:"password"`       // Redis password (optional, default: "")
+	DB           int           `mapstructure:"db"`             // Redis database number (default: 0)
+	PoolSize     int           `mapstructure:"pool_size"`      // Connection pool size (default: 10)
+	MinIdleConns int           `mapstructure:"min_idle_conns"` // Minimum idle connections (default: 5)
+	CacheTTL     time.Duration `mapstructure:"cache_ttl"`      // Default cache TTL for events (default: 5m)
 }
 
 // AppConfig contains application-level metadata and general settings
@@ -99,6 +113,15 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.max_open_conns", 25)
 	v.SetDefault("database.max_idle_conns", 25)
 	v.SetDefault("database.conn_max_lifetime", "5m")
+
+	// Redis defaults
+	v.SetDefault("redis.host", "localhost")
+	v.SetDefault("redis.port", "6379")
+	v.SetDefault("redis.password", "")
+	v.SetDefault("redis.db", 0)
+	v.SetDefault("redis.pool_size", 10)
+	v.SetDefault("redis.min_idle_conns", 5)
+	v.SetDefault("redis.cache_ttl", "5m")
 
 	// App defaults
 	v.SetDefault("app.name", "enterprise-crud")
