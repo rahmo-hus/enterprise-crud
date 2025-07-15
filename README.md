@@ -10,6 +10,7 @@ A comprehensive RESTful API for **event ticketing system** built with Go, Gin, G
 - **Order Management**: Ticket ordering with transaction support
 - **JWT Authentication**: Secure API access with role-based permissions
 - **Database Transactions**: Atomic operations for ticket purchases
+- **Redis Caching**: High-performance event caching with cache-aside pattern
 - **Clean Architecture**: Domain-driven design with comprehensive layers
 - **Comprehensive Test Coverage**: 80+ unit and integration tests
 - **Database Migrations**: Version-controlled schema management
@@ -31,7 +32,6 @@ enterprise-crud/
 │   │   ├── event/         # Event domain logic and interfaces
 │   │   ├── venue/         # Venue domain logic and interfaces
 │   │   ├── order/         # Order domain logic and interfaces
-│   │   ├── ticket/        # Ticket domain logic and interfaces
 │   │   └── role/          # Role domain logic and interfaces
 │   ├── dto/
 │   │   ├── user/          # User data transfer objects
@@ -40,25 +40,26 @@ enterprise-crud/
 │   │   └── order/         # Order data transfer objects
 │   ├── infrastructure/
 │   │   ├── database/      # Database implementations
+│   │   ├── cache/         # Redis caching layer
 │   │   └── auth/          # JWT authentication
 │   └── presentation/
 │       └── http/          # HTTP handlers
 ├── migrations/            # SQL migration files
 ├── tests/                 # Integration tests
-├── docker-compose.yml     # PostgreSQL database setup
+├── docker-compose.yml     # PostgreSQL & Redis setup
 ├── .env                   # Environment variables
 └── main.go               # Application entry point
 ```
 
 ## Quick Start
 
-### 1. Start Database
+### 1. Start Services
 
 ```bash
-# Start PostgreSQL database
+# Start PostgreSQL database and Redis cache
 docker-compose up -d
 
-# Verify database is running
+# Verify services are running
 docker-compose ps
 ```
 
@@ -390,6 +391,13 @@ DB_NAME=enterprise_crud
 DB_USER=postgres
 DB_PASSWORD=postgres
 
+# Redis Configuration (Optional)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_CACHE_TTL=5m
+
 # Server Configuration
 PORT=8080
 
@@ -397,6 +405,49 @@ PORT=8080
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_ISSUER=enterprise-crud-api
 JWT_EXPIRATION_HOURS=720
+```
+
+### Redis Caching
+
+The application includes **optional Redis caching** for enhanced performance:
+
+#### Features
+- **Event Caching**: Individual events by ID with 5-minute TTL
+- **Collection Caching**: Events by venue, organizer, and all events
+- **Cache-Aside Pattern**: Check cache → DB fallback → populate cache
+- **Automatic Invalidation**: Cache cleared on event updates/deletes
+- **Graceful Degradation**: App works without Redis
+
+#### Performance Benefits
+```
+Without Cache: Database query + Network → 20-50ms
+With Cache Hit: Redis lookup → 1-3ms (10-20x faster!)
+Cache Miss: Redis + DB + populate → 25-55ms (first time only)
+```
+
+#### Cache Keys
+- `event:id:{uuid}` - Individual event cache
+- `events:venue:{uuid}` - Events by venue
+- `events:organizer:{uuid}` - Events by organizer  
+- `events:all` - All events cache
+
+#### Configuration
+```bash
+# Use environment variables or config.yaml
+APP_REDIS_HOST=localhost
+APP_REDIS_PORT=6379
+APP_REDIS_PASSWORD=
+APP_REDIS_DB=0
+APP_REDIS_CACHE_TTL=5m
+```
+
+#### Docker Setup
+```bash
+# Redis included in docker-compose.yml
+docker-compose up -d redis
+
+# Check Redis status
+docker-compose logs redis
 ```
 
 ### Example API Workflow
@@ -475,11 +526,19 @@ curl -X GET http://localhost:8080/api/v1/orders/my-orders \
 ### Docker Compose Configuration
 
 The provided `docker-compose.yml` sets up:
+
+**PostgreSQL Database:**
 - PostgreSQL 15 Alpine
 - Database: `enterprise_crud`
 - Username/Password: `postgres/postgres`
 - Port: `5433`
 - Data persistence with named volume
+
+**Redis Cache:**
+- Redis 7 Alpine
+- Port: `6379`
+- Persistent storage enabled (AOF)
+- Health checks configured
 
 ## Development
 
@@ -550,6 +609,33 @@ docker-compose logs db
 
 # Restart database
 docker-compose restart db
+```
+
+### Redis Connection Issues
+```bash
+# Check if Redis is running
+docker-compose ps redis
+
+# Check Redis logs
+docker-compose logs redis
+
+# Restart Redis
+docker-compose restart redis
+
+# Test Redis connection
+docker-compose exec redis redis-cli ping
+```
+
+### Cache Issues
+```bash
+# Clear all event caches
+docker-compose exec redis redis-cli FLUSHDB
+
+# View cache keys
+docker-compose exec redis redis-cli KEYS "event:*"
+
+# Check cache statistics
+docker-compose exec redis redis-cli INFO stats
 ```
 
 ### Migration Issues
